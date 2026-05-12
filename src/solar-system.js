@@ -279,9 +279,9 @@ const focusLayouts = {
     radii: { sun: 0.98, earth: 0.78, moon: 0.24 },
     positions: {
       sun: new THREE.Vector3(-1.32, 0, -0.08),
-      earth: new THREE.Vector3(0.85, 0, 0),
-      moon: new THREE.Vector3(1.95, 0.08, 0.24),
     },
+    earthOrbit: { radius: 2.22, speed: 0.30, angle: 0.08 },
+    moonOrbit: { radius: 1.08, speed: 1.7, angle: 0.6 },
     orbitFocusBody: 'earth',
   },
   seasons: {
@@ -289,8 +289,8 @@ const focusLayouts = {
     radii: { sun: 0.98, earth: 0.86 },
     positions: {
       sun: new THREE.Vector3(-1.28, 0, -0.08),
-      earth: new THREE.Vector3(0.95, 0, 0),
     },
+    earthOrbit: { radius: 2.32, speed: 0.34, angle: 0.38 },
     orbitFocusBody: 'earth',
   },
 }
@@ -1206,7 +1206,7 @@ function updateBodies() {
     entry.mesh.rotation.y += body.rotationSpeed * 0.015 * (state.motionEnabled ? 1 : 0)
 
     if (focusLayout?.bodyIds.has(body.id)) {
-      entry.group.position.lerp(focusLayout.positions[body.id], 0.2)
+      entry.group.position.lerp(getFocusLayoutPosition(body, focusLayout), 0.2)
       entry.group.rotation.z = body.id === 'earth' ? THREE.MathUtils.degToRad(body.axialTilt || 0) : 0
     } else if (state.compareMode) {
       const x = compareSlots[body.id] ?? 0
@@ -1245,6 +1245,34 @@ function updateBodies() {
   updateOrbitVisibility()
   updateSunLight(sunObject)
   updateEarthNightShade(earthObject)
+}
+
+function getFocusLayoutPosition(body, focusLayout) {
+  const sunPosition = focusLayout.positions.sun || new THREE.Vector3()
+
+  if (body.id === 'earth' && focusLayout.earthOrbit) {
+    const orbit = focusLayout.earthOrbit
+    const angle = orbit.angle + state.elapsed * orbit.speed
+    return sunPosition.clone().add(new THREE.Vector3(
+      Math.cos(angle) * orbit.radius,
+      0,
+      Math.sin(angle) * orbit.radius,
+    ))
+  }
+
+  if (body.id === 'moon' && focusLayout.moonOrbit) {
+    const earth = bodyById.get('earth')
+    const earthPosition = earth ? getFocusLayoutPosition(earth, focusLayout) : sunPosition
+    const orbit = focusLayout.moonOrbit
+    const angle = orbit.angle + state.elapsed * orbit.speed
+    return earthPosition.clone().add(new THREE.Vector3(
+      Math.cos(angle) * orbit.radius,
+      0.08,
+      Math.sin(angle) * orbit.radius,
+    ))
+  }
+
+  return focusLayout.positions[body.id] || new THREE.Vector3()
 }
 
 function getBodyDisplayRadius(body) {
@@ -1303,6 +1331,15 @@ function updateOrbitVisibility() {
     const related = focusLayout
       ? orbitLine.userData.bodyId === focusLayout.orbitFocusBody
       : activeStep.highlights.includes(orbitLine.userData.bodyId)
+    const body = bodyById.get(orbitLine.userData.bodyId)
+
+    orbitLine.position.set(0, 0, 0)
+    orbitLine.scale.setScalar(1)
+    if (focusLayout && related && body?.orbitRadius && focusLayout.earthOrbit) {
+      orbitLine.position.copy(focusLayout.positions.sun || new THREE.Vector3())
+      orbitLine.scale.setScalar(focusLayout.earthOrbit.radius / body.orbitRadius)
+    }
+
     orbitLine.material.color.set(related ? '#ffe59a' : '#aee7ff')
     orbitLine.material.opacity = focusLayout
       ? related ? 0.58 : 0.045
@@ -1325,7 +1362,7 @@ function updateEarthNightShade(earthObject) {
   const worldSun = sunEntry.group.position.clone()
   const worldEarth = earthObject.group.position.clone()
   const awayFromSun = worldEarth.clone().sub(worldSun).normalize()
-  shadeEntry.mesh.lookAt(awayFromSun)
+  shadeEntry.mesh.lookAt(worldEarth.clone().add(awayFromSun))
 }
 
 function shouldShowLabel(body, activeStep) {
