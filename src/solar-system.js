@@ -278,6 +278,7 @@ const state = {
   showRealValues: teachingConfig.showRealValuesByDefault,
   selectedBodyId: '',
   focusedBodyId: '',
+  selectedStructurePartId: '',
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   topPanelCollapsed: false,
@@ -338,6 +339,52 @@ const compareSlots = {
   saturn: 1.48,
   uranus: 3.18,
   neptune: 4.42,
+}
+const earthStructureParts = {
+  crust: {
+    title: '地壳',
+    narration: '地壳是地球最外面的坚硬外壳，平均厚度约五到七十千米。大陆地壳更厚，海洋地壳更薄，我们生活的陆地和海底都在这一层上。',
+  },
+  mantle: {
+    title: '地幔',
+    narration: '地幔位于地壳下面，厚度约两千九百千米，是地球内部最厚的一层。它由高温岩石组成，缓慢流动会推动板块运动。',
+  },
+  outerCore: {
+    title: '外核',
+    narration: '外核包在内核外面，厚度约两千二百六十千米，主要由液态铁和镍组成。液态金属的运动和地球磁场有重要关系。',
+  },
+  innerCore: {
+    title: '内核',
+    narration: '内核位于地球中心，半径约一千二百二十千米，温度非常高，压力也很大，所以主要铁镍物质保持为固态。',
+  },
+  atmosphere: {
+    title: '大气层',
+    narration: '大气层包围在地球外面，从近地面向外依次包括对流层、平流层、中间层、热层和散逸层。它能保护生命，也形成天气和气候。',
+  },
+  exosphere: {
+    title: '散逸层',
+    narration: '散逸层是大气最外层，大约从七百千米延伸到一万千米附近，空气极其稀薄，逐渐过渡到外太空。',
+  },
+  thermosphere: {
+    title: '热层',
+    narration: '热层大约位于八十到七百千米高度，空气稀薄，极光常在这里发生，一些人造卫星也在这一高度范围运行。',
+  },
+  mesosphere: {
+    title: '中间层',
+    narration: '中间层大约位于五十到八十千米高度，进入大气的许多流星体会在这里燃烧。',
+  },
+  stratosphere: {
+    title: '平流层',
+    narration: '平流层大约位于十二到五十千米高度，空气较稳定，臭氧层也主要分布在这一层，能吸收紫外线。',
+  },
+  troposphere: {
+    title: '对流层',
+    narration: '对流层最接近地表，大约从地面到十二千米高度。云、雨、风等天气现象主要发生在这一层。',
+  },
+  ozone: {
+    title: '臭氧层',
+    narration: '臭氧层大约位于十五到三十五千米高度，能吸收大量紫外线，对地表生命有保护作用。',
+  },
 }
 
 const stepList = document.querySelector('#stepList')
@@ -416,6 +463,9 @@ function initScene() {
   controls.minDistance = 1.4
   controls.maxDistance = 26
   controls.enablePan = false
+  controls.addEventListener('start', () => {
+    state.cameraMoveUntil = 0
+  })
 
   ambientLight = new THREE.AmbientLight('#b8c9d9', 0.62)
   scene.add(ambientLight)
@@ -566,7 +616,7 @@ function syncSceneNotes() {
   const step = getActiveStep()
   if (step.id === 'earthAnalysis') {
     scaleNote.textContent = '独立地球剖面模型：地壳、地幔、外核、内核与大气层分开展示。'
-    sceneCaption.textContent = '拖动模型可以换角度，滚轮可以放大缩小；标签线指向内部结构和大气层。'
+    sceneCaption.textContent = '点击地壳、地幔、外核、内核或大气层标签可播放讲解；拖动后视角会保持不回弹。'
     return
   }
 
@@ -724,6 +774,39 @@ function getNarrationText() {
   ])
 }
 
+function playStructureNarration(part) {
+  if (!part) return
+  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+    sceneCaption.textContent = `当前浏览器不支持语音讲解：${part.title}。`
+    return
+  }
+
+  window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(formatNarrationText([
+    `现在讲解${part.title}`,
+    part.narration,
+  ]))
+  utterance.lang = 'zh-CN'
+  utterance.rate = 0.88
+  utterance.pitch = 1.02
+  utterance.volume = 1
+  const voice = getChineseVoice()
+  if (voice) utterance.voice = voice
+  utterance.onend = () => {
+    state.narrationPlaying = false
+    syncNarrationState()
+  }
+  utterance.onerror = () => {
+    state.narrationPlaying = false
+    syncNarrationState()
+    sceneCaption.textContent = `${part.title}的语音讲解没有播放成功，请检查浏览器声音设置。`
+  }
+
+  state.narrationPlaying = true
+  syncNarrationState()
+  window.speechSynthesis.speak(utterance)
+}
+
 function formatNarrationFacts(facts) {
   return facts
     .map((fact) => normalizeNarrationPart(stripHtml(fact)))
@@ -750,7 +833,15 @@ function stripHtml(value) {
 }
 
 function handleSceneClick(event) {
-  if (getActiveStep().id === 'earthAnalysis') return
+  if (getActiveStep().id === 'earthAnalysis') {
+    const part = pickEarthStructureFromEvent(event)
+    if (!part) return
+
+    state.selectedStructurePartId = part.id
+    playStructureNarration(part)
+    sceneCaption.textContent = `正在讲解：${part.title}。拖动模型后视角会保持在你松手的位置。`
+    return
+  }
 
   const picked = pickBodyFromEvent(event)
   if (!picked) return
@@ -765,10 +856,33 @@ function handleSceneClick(event) {
 
 function handleScenePointerMove(event) {
   if (getActiveStep().id === 'earthAnalysis') {
-    renderer.domElement.style.cursor = 'grab'
+    renderer.domElement.style.cursor = pickEarthStructureFromEvent(event) ? 'pointer' : 'grab'
     return
   }
   renderer.domElement.style.cursor = pickBodyFromEvent(event) ? 'pointer' : 'grab'
+}
+
+function pickEarthStructureFromEvent(event) {
+  if (!earthLayerGroup?.visible) return null
+
+  const rect = renderer.domElement.getBoundingClientRect()
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+  raycaster.setFromCamera(pointer, camera)
+
+  const pickable = []
+  earthLayerGroup.traverse((object) => {
+    if (object.userData?.structurePartId) pickable.push(object)
+  })
+  const hits = raycaster
+    .intersectObjects(pickable, true)
+    .filter((item) => item.object.userData.structurePartId)
+  const hit = hits.find((item) => item.object.userData.structurePartId !== 'atmosphere') || hits[0]
+  if (!hit) return null
+
+  const id = hit.object.userData.structurePartId
+  const part = earthStructureParts[id]
+  return part ? { id, ...part, object: hit.object } : null
 }
 
 function pickBodyFromEvent(event) {
@@ -791,9 +905,10 @@ function pickBodyFromEvent(event) {
 }
 
 function clearBodyFocus() {
-  const hadFocus = Boolean(state.focusedBodyId || state.selectedBodyId)
+  const hadFocus = Boolean(state.focusedBodyId || state.selectedBodyId || state.selectedStructurePartId)
   state.focusedBodyId = ''
   state.selectedBodyId = ''
+  state.selectedStructurePartId = ''
   if (hadFocus) renderTeachingPanel()
 }
 
@@ -1301,7 +1416,7 @@ function createEarthLayerGuide() {
   group.add(earth)
 
   const surface = createEarthStructureSurface(1.55)
-  const atmosphereShell = createTransparentSphere(1.72, '#85d9ff', 0.16)
+  const atmosphereShell = createTransparentSphere(1.72, '#85d9ff', 0.16, 'atmosphere')
   earth.add(surface, atmosphereShell)
 
   const cutaway = new THREE.Group()
@@ -1310,10 +1425,10 @@ function createEarthLayerGuide() {
   earth.add(cutaway)
 
   const layerMeshes = [
-    createCutawayLayer({ name: '地幔', innerRadius: 0.72, outerRadius: 1.42, color: '#c53a24', highlight: '#ff7b34', shadow: '#551515', emissive: '#7d1d13' }),
-    createCutawayLayer({ name: '外核', innerRadius: 0.38, outerRadius: 0.74, color: '#f37a16', highlight: '#ffd05c', shadow: '#a5330c', emissive: '#d94f10' }),
-    createCutawayLayer({ name: '内核', innerRadius: 0, outerRadius: 0.40, color: '#ffe15f', highlight: '#fff8af', shadow: '#f08d14', emissive: '#ffbf23' }),
-    createCutawayLayer({ name: '地壳', innerRadius: 1.42, outerRadius: 1.55, color: '#6a5139', highlight: '#d6aa77', shadow: '#241a12', emissive: '#3f2b1a', opacity: 0.98 }),
+    createCutawayLayer({ id: 'mantle', name: '地幔', innerRadius: 0.72, outerRadius: 1.42, color: '#c53a24', highlight: '#ff7b34', shadow: '#551515', emissive: '#7d1d13' }),
+    createCutawayLayer({ id: 'outerCore', name: '外核', innerRadius: 0.38, outerRadius: 0.74, color: '#f37a16', highlight: '#ffd05c', shadow: '#a5330c', emissive: '#d94f10' }),
+    createCutawayLayer({ id: 'innerCore', name: '内核', innerRadius: 0, outerRadius: 0.40, color: '#ffe15f', highlight: '#fff8af', shadow: '#f08d14', emissive: '#ffbf23' }),
+    createCutawayLayer({ id: 'crust', name: '地壳', innerRadius: 1.42, outerRadius: 1.55, color: '#6a5139', highlight: '#d6aa77', shadow: '#241a12', emissive: '#3f2b1a', opacity: 0.98 }),
   ]
   layerMeshes.forEach((mesh, index) => {
     mesh.renderOrder = index + 2
@@ -1335,6 +1450,7 @@ function createEarthLayerGuide() {
 
   const internalCallouts = [
     {
+      id: 'crust',
       title: '地壳',
       detail: '最外层，平均厚度约5-70千米',
       color: '#d8b17c',
@@ -1343,6 +1459,7 @@ function createEarthLayerGuide() {
       labelScale: 0.90,
     },
     {
+      id: 'mantle',
       title: '地幔',
       detail: '厚度约2900千米，由高温岩石组成',
       color: '#ff7448',
@@ -1351,6 +1468,7 @@ function createEarthLayerGuide() {
       labelScale: 0.90,
     },
     {
+      id: 'outerCore',
       title: '外核',
       detail: '厚度约2260千米，主要为液态铁镍',
       color: '#ff9c32',
@@ -1359,6 +1477,7 @@ function createEarthLayerGuide() {
       labelScale: 0.90,
     },
     {
+      id: 'innerCore',
       title: '内核',
       detail: '半径约1220千米，温度高、密度大',
       color: '#ffe766',
@@ -1387,28 +1506,43 @@ function createEarthStructureSurface(radius) {
     metalness: 0.02,
     emissive: '#1d6f9d',
     emissiveIntensity: 0.10,
+    side: THREE.DoubleSide,
   })
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 48), material)
+  const mesh = new THREE.Mesh(createThreeQuarterSphereGeometry(radius, 96, 48), material)
   mesh.name = '真实地表'
   mesh.rotation.y = THREE.MathUtils.degToRad(-32)
   return mesh
 }
 
-function createTransparentSphere(radius, color, opacity) {
-  return new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 72, 36),
+function createThreeQuarterSphereGeometry(radius, widthSegments, heightSegments) {
+  return new THREE.SphereGeometry(
+    radius,
+    widthSegments,
+    heightSegments,
+    Math.PI * 0.5,
+    Math.PI * 1.5,
+    0.04,
+    Math.PI - 0.08,
+  )
+}
+
+function createTransparentSphere(radius, color, opacity, structurePartId = '') {
+  const mesh = new THREE.Mesh(
+    createThreeQuarterSphereGeometry(radius, 72, 36),
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
       opacity,
       blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
+      side: THREE.DoubleSide,
       depthWrite: false,
     }),
   )
+  if (structurePartId) mesh.userData.structurePartId = structurePartId
+  return mesh
 }
 
-function createCutawayLayer({ name, innerRadius, outerRadius, color, highlight, shadow, emissive, opacity = 1 }) {
+function createCutawayLayer({ id, name, innerRadius, outerRadius, color, highlight, shadow, emissive, opacity = 1 }) {
   const geometry = innerRadius > 0
     ? new THREE.RingGeometry(innerRadius, outerRadius, 128, 3, -Math.PI / 2, Math.PI)
     : new THREE.CircleGeometry(outerRadius, 128, -Math.PI / 2, Math.PI)
@@ -1426,6 +1560,7 @@ function createCutawayLayer({ name, innerRadius, outerRadius, color, highlight, 
   })
   const mesh = new THREE.Mesh(geometry, material)
   mesh.name = name
+  mesh.userData.structurePartId = id
   return mesh
 }
 
@@ -1466,17 +1601,19 @@ function createLayerTexture(seedText, base, highlight, shadow) {
 
 function createAtmosphereBands(group) {
   const bands = [
-    { title: '散逸层', detail: '约700-10,000千米，与外太空过渡', color: '#a9caff', label: new THREE.Vector3(2.42, 1.58, 1.22), rx: 3.02, ry: 1.68 },
-    { title: '热层', detail: '约80-700千米，极光和卫星轨道', color: '#8ad8ff', label: new THREE.Vector3(2.45, 0.94, 1.22), rx: 2.72, ry: 1.36 },
-    { title: '中间层', detail: '约50-80千米，流星体在此燃烧', color: '#75c4ff', label: new THREE.Vector3(2.46, 0.30, 1.22), rx: 2.42, ry: 1.08 },
-    { title: '平流层', detail: '约12-50千米，含臭氧层', color: '#63b5f4', label: new THREE.Vector3(2.43, -0.35, 1.22), rx: 2.12, ry: 0.82 },
-    { title: '对流层', detail: '约0-12千米，云、雨、风等天气', color: '#9fe7ff', label: new THREE.Vector3(2.42, -1.00, 1.22), rx: 1.84, ry: 0.60 },
+    { id: 'exosphere', title: '散逸层', detail: '约700-10,000千米，与外太空过渡', color: '#a9caff', label: new THREE.Vector3(2.42, 1.58, 1.22), rx: 3.02, ry: 1.68 },
+    { id: 'thermosphere', title: '热层', detail: '约80-700千米，极光和卫星轨道', color: '#8ad8ff', label: new THREE.Vector3(2.45, 0.94, 1.22), rx: 2.72, ry: 1.36 },
+    { id: 'mesosphere', title: '中间层', detail: '约50-80千米，流星体在此燃烧', color: '#75c4ff', label: new THREE.Vector3(2.46, 0.30, 1.22), rx: 2.42, ry: 1.08 },
+    { id: 'stratosphere', title: '平流层', detail: '约12-50千米，含臭氧层', color: '#63b5f4', label: new THREE.Vector3(2.43, -0.35, 1.22), rx: 2.12, ry: 0.82 },
+    { id: 'troposphere', title: '对流层', detail: '约0-12千米，云、雨、风等天气', color: '#9fe7ff', label: new THREE.Vector3(2.42, -1.00, 1.22), rx: 1.84, ry: 0.60 },
   ]
 
   bands.forEach((band, index) => {
     const arc = createAtmosphereArc(-1.05, -0.18, band.rx, band.ry, band.color, 0.72 - index * 0.08)
+    arc.userData.structurePartId = band.id
     group.add(arc)
     group.add(createStructureCallout({
+      id: band.id,
       title: band.title,
       detail: band.detail,
       color: band.color,
@@ -1489,6 +1626,7 @@ function createAtmosphereBands(group) {
 
   const ozone = createInfoLabel('臭氧层', '约15-35千米，吸收紫外线', '#2d8cff', 0.78)
   ozone.position.set(2.27, -0.68, 1.28)
+  ozone.userData.structurePartId = 'ozone'
   group.add(ozone)
 }
 
@@ -1505,9 +1643,10 @@ function createAtmosphereArc(centerX, centerY, radiusX, radiusY, color, opacity)
   return createGuideLine(points, color, opacity, 2.4)
 }
 
-function createStructureCallout({ title, detail, color, labelPosition, targetPosition, labelScale = 1, side = 'left' }) {
+function createStructureCallout({ id, title, detail, color, labelPosition, targetPosition, labelScale = 1, side = 'left' }) {
   const group = new THREE.Group()
   const label = createInfoLabel(title, detail, color, labelScale)
+  label.userData.structurePartId = id
   label.position.copy(labelPosition)
   group.add(label)
 
@@ -1518,6 +1657,7 @@ function createStructureCallout({ title, detail, color, labelPosition, targetPos
     new THREE.SphereGeometry(0.035, 16, 8),
     new THREE.MeshBasicMaterial({ color, depthTest: false }),
   )
+  dot.userData.structurePartId = id
   dot.position.copy(targetPosition)
   group.add(dot)
   return group
@@ -2003,10 +2143,12 @@ function getFocusCameraTarget(step) {
 
 function updateCamera() {
   const step = getActiveStep()
+  const now = performance.now()
   if (state.focusedBodyId) {
     const body = bodyById.get(state.focusedBodyId)
     const entry = objectById.get(state.focusedBodyId)
     if (body && entry) {
+      if (now > state.cameraMoveUntil) return
       const target = entry.group.position.clone()
       const radius = getBodyDisplayRadius(body)
       const distance = THREE.MathUtils.clamp(radius * 5.8, 2.4, body.id === 'sun' ? 9.2 : 7.2)
@@ -2022,12 +2164,13 @@ function updateCamera() {
 
   const dynamicCamera = usesDynamicCameraTarget(step) && !state.compareMode
   if (dynamicCamera) {
+    if (now > state.cameraMoveUntil) return
     const target = getStepTarget(step)
     cameraGoal.target = target
     cameraGoal.position = target.clone().add(getStepCameraOffset(step))
   }
 
-  if (!dynamicCamera && performance.now() > state.cameraMoveUntil) return
+  if (!dynamicCamera && now > state.cameraMoveUntil) return
   camera.position.lerp(cameraGoal.position, 0.08)
   controls.target.lerp(cameraGoal.target, 0.08)
 }
