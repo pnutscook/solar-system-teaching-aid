@@ -250,9 +250,9 @@ export const lessonSteps = [
       '月相是我们看到的月球亮面发生变化。',
     ],
     highlights: ['sun', 'earth', 'moon'],
-    focusBodies: ['earth', 'moon'],
+    focusBodies: ['sun', 'earth', 'moon'],
     showPhases: true,
-    camera: { position: [1.9, 1.2, 2.4], targetBody: 'earth', fov: 42 },
+    camera: { position: [0.2, 2.35, 6.2], target: [0.1, 0, 0], fov: 42 },
   },
 ]
 
@@ -291,6 +291,16 @@ const focusLayouts = {
       sun: new THREE.Vector3(-1.28, 0, -0.08),
     },
     earthOrbit: { radius: 2.32, speed: 0.34, angle: 0.38 },
+    orbitFocusBody: 'earth',
+  },
+  moon: {
+    bodyIds: new Set(['sun', 'earth', 'moon']),
+    radii: { sun: 0.98, earth: 0.72, moon: 0.32 },
+    positions: {
+      sun: new THREE.Vector3(-1.32, 0, -0.08),
+    },
+    earthOrbit: { radius: 2.22, speed: 0.30, angle: 0.08 },
+    moonOrbit: { radius: 1.12, speed: 1.7, angle: 0.6 },
     orbitFocusBody: 'earth',
   },
 }
@@ -748,7 +758,7 @@ function setCameraForBody(body) {
 
 function createOrbitRings() {
   bodies
-    .filter((body) => !body.parent && body.orbitRadius > 0)
+    .filter((body) => body.orbitRadius > 0)
     .forEach((body) => {
       const points = []
       const segments = 160
@@ -767,6 +777,7 @@ function createOrbitRings() {
       })
       const line = new THREE.LineLoop(geometry, material)
       line.userData.bodyId = body.id
+      line.userData.parentId = body.parent || ''
       orbitGroup.add(line)
     })
 }
@@ -790,8 +801,19 @@ function createBodies() {
       group.add(createEarthAxis())
       group.add(createEarthLandMarks())
       const nightShade = createNightShade()
+      const daylight = createLightHemisphere('#fff0a8', 0.28, 1.032)
       group.add(nightShade)
+      group.add(daylight)
       objectById.set('earth-night-shade', { mesh: nightShade, body })
+      objectById.set('earth-daylight', { mesh: daylight, body })
+    }
+
+    if (body.id === 'moon') {
+      const moonLight = createLightHemisphere('#f7fbff', 0.55, 1.05)
+      const moonShade = createNightShade(1.04, 0.34)
+      group.add(moonLight, moonShade)
+      objectById.set('moon-daylight', { mesh: moonLight, body })
+      objectById.set('moon-night-shade', { mesh: moonShade, body })
     }
 
     if (body.hasRing) {
@@ -1065,12 +1087,12 @@ function createEarthLandMarks() {
   return group
 }
 
-function createNightShade() {
-  const geometry = new THREE.SphereGeometry(1.025, 36, 18, 0, Math.PI)
+function createNightShade(radius = 1.025, opacity = 0.46) {
+  const geometry = new THREE.SphereGeometry(radius, 36, 18, 0, Math.PI)
   const material = new THREE.MeshBasicMaterial({
     color: '#060910',
     transparent: true,
-    opacity: 0.46,
+    opacity,
     side: THREE.DoubleSide,
     depthWrite: false,
   })
@@ -1078,6 +1100,22 @@ function createNightShade() {
   shade.name = '昼夜阴影'
   shade.visible = true
   return shade
+}
+
+function createLightHemisphere(color, opacity, radius) {
+  const geometry = new THREE.SphereGeometry(radius, 36, 18, 0, Math.PI)
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  })
+  const light = new THREE.Mesh(geometry, material)
+  light.name = '阳光亮面'
+  light.visible = false
+  return light
 }
 
 function createSaturnRing() {
@@ -1194,6 +1232,7 @@ function animate() {
 function updateBodies() {
   const activeStep = getActiveStep()
   const earthObject = objectById.get('earth')
+  const moonObject = objectById.get('moon')
   const sunObject = objectById.get('sun')
   const focusLayout = getActiveFocusLayout()
 
@@ -1244,7 +1283,7 @@ function updateBodies() {
 
   updateOrbitVisibility()
   updateSunLight(sunObject)
-  updateEarthNightShade(earthObject)
+  updateLightOverlays(earthObject, moonObject, sunObject)
 }
 
 function getFocusLayoutPosition(body, focusLayout) {
@@ -1329,13 +1368,21 @@ function updateOrbitVisibility() {
     const activeStep = getActiveStep()
     const focusLayout = getActiveFocusLayout()
     const related = focusLayout
-      ? orbitLine.userData.bodyId === focusLayout.orbitFocusBody
+      ? orbitLine.userData.bodyId === focusLayout.orbitFocusBody || Boolean(focusLayout.moonOrbit && orbitLine.userData.bodyId === 'moon')
       : activeStep.highlights.includes(orbitLine.userData.bodyId)
     const body = bodyById.get(orbitLine.userData.bodyId)
+    const parentEntry = orbitLine.userData.parentId ? objectById.get(orbitLine.userData.parentId) : null
 
     orbitLine.position.set(0, 0, 0)
     orbitLine.scale.setScalar(1)
-    if (focusLayout && related && body?.orbitRadius && focusLayout.earthOrbit) {
+
+    if (parentEntry) {
+      orbitLine.position.copy(parentEntry.group.position)
+    }
+
+    if (focusLayout && related && body?.parent && body.orbitRadius && focusLayout.moonOrbit) {
+      orbitLine.scale.setScalar(focusLayout.moonOrbit.radius / body.orbitRadius)
+    } else if (focusLayout && related && body?.orbitRadius && focusLayout.earthOrbit) {
       orbitLine.position.copy(focusLayout.positions.sun || new THREE.Vector3())
       orbitLine.scale.setScalar(focusLayout.earthOrbit.radius / body.orbitRadius)
     }
@@ -1352,17 +1399,46 @@ function updateSunLight(sunObject) {
   sunLight.position.copy(sunObject.group.position)
 }
 
-function updateEarthNightShade(earthObject) {
-  const shadeEntry = objectById.get('earth-night-shade')
-  const sunEntry = objectById.get('sun')
-  if (!earthObject || !shadeEntry || !sunEntry) return
-
+function updateLightOverlays(earthObject, moonObject, sunObject) {
   const step = getActiveStep()
-  shadeEntry.mesh.visible = ['rotation', 'seasons', 'moon'].includes(step.id)
-  const worldSun = sunEntry.group.position.clone()
-  const worldEarth = earthObject.group.position.clone()
-  const awayFromSun = worldEarth.clone().sub(worldSun).normalize()
-  shadeEntry.mesh.lookAt(worldEarth.clone().add(awayFromSun))
+  const worldSun = sunObject?.group.position.clone()
+  if (!worldSun) return
+
+  updateBodyLightOverlay({
+    bodyObject: earthObject,
+    worldSun,
+    shadeEntry: objectById.get('earth-night-shade'),
+    lightEntry: objectById.get('earth-daylight'),
+    showShade: ['rotation', 'seasons', 'moon'].includes(step.id),
+    showLight: step.id === 'rotation',
+  })
+
+  updateBodyLightOverlay({
+    bodyObject: moonObject,
+    worldSun,
+    shadeEntry: objectById.get('moon-night-shade'),
+    lightEntry: objectById.get('moon-daylight'),
+    showShade: step.id === 'moon',
+    showLight: step.id === 'moon',
+  })
+}
+
+function updateBodyLightOverlay({ bodyObject, worldSun, shadeEntry, lightEntry, showShade, showLight }) {
+  if (!bodyObject) return
+
+  const worldBody = bodyObject.group.position.clone()
+  const towardSun = worldSun.clone().sub(worldBody).normalize()
+  const awayFromSun = worldBody.clone().sub(worldSun).normalize()
+
+  if (shadeEntry) {
+    shadeEntry.mesh.visible = showShade
+    shadeEntry.mesh.lookAt(worldBody.clone().add(awayFromSun))
+  }
+
+  if (lightEntry) {
+    lightEntry.mesh.visible = showLight
+    lightEntry.mesh.lookAt(worldBody.clone().add(towardSun))
+  }
 }
 
 function shouldShowLabel(body, activeStep) {
