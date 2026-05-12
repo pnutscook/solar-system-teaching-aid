@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>太阳系小学课堂教具</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js",
+          "three/addons/": "./vendor/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app-shell" aria-label="太阳系小学课堂教具">
+      <aside class="lesson-rail" aria-label="讲解步骤">
+        <div class="brand-block">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <strong>太阳系课堂</strong>
+            <small>老师演示教具</small>
+          </div>
+        </div>
+        <button type="button" id="leftPanelToggle" class="panel-toggle" aria-pressed="false">
+          <span class="collapse-icon" aria-hidden="true"></span>
+          <span class="toggle-label">收起步骤栏</span>
+        </button>
+        <div class="step-list" id="stepList"></div>
+      </aside>
+
+      <section class="stage-panel" aria-label="三维太阳系演示区">
+        <header class="stage-toolbar">
+          <button type="button" id="topPanelToggle" class="top-panel-toggle" aria-pressed="false">
+            <span class="collapse-icon" aria-hidden="true"></span>
+            <span class="toggle-label">收起顶部栏</span>
+          </button>
+          <div class="stage-heading">
+            <p class="eyebrow">小学科学 · 太阳系</p>
+            <h1 id="lessonTitle">认识太阳系</h1>
+          </div>
+          <div class="tool-buttons" aria-label="演示工具">
+            <button type="button" id="scaleToggle" class="tool-button" aria-pressed="false">
+              <span class="button-icon scale-icon" aria-hidden="true"></span>
+              大小对比
+            </button>
+            <button type="button" id="motionToggle" class="tool-button" aria-pressed="true">
+              <span class="button-icon motion-icon" aria-hidden="true"></span>
+              自动运动
+            </button>
+            <button type="button" id="factsToggle" class="tool-button" aria-pressed="false">
+              <span class="button-icon data-icon" aria-hidden="true"></span>
+              显示数值
+            </button>
+            <button type="button" id="narrationToggle" class="tool-button" aria-pressed="false">
+              <span class="button-icon audio-icon" aria-hidden="true"></span>
+              播放讲解
+            </button>
+            <button type="button" id="resetView" class="tool-button">
+              <span class="button-icon reset-icon" aria-hidden="true"></span>
+              重置视角
+            </button>
+            <button type="button" id="fullscreenToggle" class="tool-button" aria-pressed="false">
+              <span class="button-icon fullscreen-icon" aria-hidden="true"></span>
+              全屏
+            </button>
+          </div>
+        </header>
+
+        <div class="canvas-wrap">
+          <div id="sceneHost" class="scene-host" role="img" aria-label="可旋转的太阳系三维模型"></div>
+          <div class="scene-caption" id="sceneCaption">拖动画面可以换角度，滚轮可以放大缩小。</div>
+          <div class="scale-note" id="scaleNote">课堂比例：每颗行星都被放大，方便在投屏上看清。</div>
+        </div>
+      </section>
+
+      <aside class="teaching-panel" aria-label="当前讲解内容">
+        <button type="button" id="rightPanelToggle" class="panel-toggle panel-toggle-right" aria-pressed="false">
+          <span class="collapse-icon" aria-hidden="true"></span>
+          <span class="toggle-label">收起讲解栏</span>
+        </button>
+        <section class="talk-track">
+          <p class="panel-kicker" id="lessonKicker">第 1 步</p>
+          <h2 id="stepHeading">认识太阳系</h2>
+          <p id="stepNarration" class="narration"></p>
+        </section>
+
+        <section class="fact-section">
+          <h3>关键事实</h3>
+          <ul id="factList" class="fact-list"></ul>
+        </section>
+
+        <section class="planet-section">
+          <h3>本步重点</h3>
+          <div id="focusBodies" class="focus-bodies"></div>
+        </section>
+
+        <section id="phaseSection" class="phase-section" hidden>
+          <h3>月相示意</h3>
+          <div class="phase-strip" aria-label="月相变化示意">
+            <span class="phase new-moon"></span>
+            <span class="phase first-quarter"></span>
+            <span class="phase full-moon"></span>
+            <span class="phase last-quarter"></span>
+          </div>
+          <p>我们看到的月亮形状，会随着月球绕地球运动而变化。</p>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="./src/solar-system.js"></script>
+  </body>
+</html>
