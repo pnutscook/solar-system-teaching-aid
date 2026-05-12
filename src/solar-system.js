@@ -221,7 +221,7 @@ export const lessonSteps = [
     ],
     highlights: ['sun', 'earth', 'moon'],
     focusBodies: ['sun', 'earth', 'moon'],
-    camera: { position: [0.2, 2.35, 6.2], target: [0.1, 0, 0], fov: 42 },
+    camera: { position: [0.2, 2.35, 6.2], targetFocus: true, fov: 42 },
   },
   {
     id: 'seasons',
@@ -236,7 +236,7 @@ export const lessonSteps = [
     ],
     highlights: ['sun', 'earth'],
     focusBodies: ['sun', 'earth'],
-    camera: { position: [0.25, 2.45, 6.4], target: [0.05, 0, 0], fov: 42 },
+    camera: { position: [0.25, 2.45, 6.4], targetFocus: true, fov: 42 },
   },
   {
     id: 'moon',
@@ -252,7 +252,7 @@ export const lessonSteps = [
     highlights: ['sun', 'earth', 'moon'],
     focusBodies: ['sun', 'earth', 'moon'],
     showPhases: true,
-    camera: { position: [0.2, 2.35, 6.2], target: [0.1, 0, 0], fov: 42 },
+    camera: { position: [0.2, 2.35, 6.2], targetFocus: true, fov: 42 },
   },
 ]
 
@@ -1465,7 +1465,7 @@ function updateHighlights() {
 function setCameraFromStep(immediate = false) {
   const step = getActiveStep()
   const target = getStepTarget(step)
-  const position = step.camera.targetBody
+  const position = usesDynamicCameraTarget(step)
     ? target.clone().add(new THREE.Vector3(...step.camera.position))
     : new THREE.Vector3(...step.camera.position)
 
@@ -1484,11 +1484,31 @@ function setCameraFromStep(immediate = false) {
   }
 }
 
+function usesDynamicCameraTarget(step) {
+  return Boolean(step.camera.targetBody || step.camera.targetFocus)
+}
+
 function getStepTarget(step) {
   if (step.camera.targetBody) {
     return objectById.get(step.camera.targetBody)?.group.position.clone() || new THREE.Vector3()
   }
+  if (step.camera.targetFocus) {
+    return getFocusCameraTarget(step)
+  }
   return new THREE.Vector3(...step.camera.target)
+}
+
+function getFocusCameraTarget(step) {
+  const focusLayout = focusLayouts[step.id]
+  const bodyIds = focusLayout ? Array.from(focusLayout.bodyIds) : step.focusBodies || []
+  const positions = bodyIds
+    .map((bodyId) => objectById.get(bodyId)?.group.position)
+    .filter(Boolean)
+
+  if (!positions.length) return new THREE.Vector3(...(step.camera.target || [0, 0, 0]))
+
+  const target = positions.reduce((sum, position) => sum.add(position), new THREE.Vector3())
+  return target.multiplyScalar(1 / positions.length)
 }
 
 function updateCamera() {
@@ -1510,13 +1530,14 @@ function updateCamera() {
     }
   }
 
-  if (step.camera.targetBody && !state.compareMode) {
+  const dynamicCamera = usesDynamicCameraTarget(step) && !state.compareMode
+  if (dynamicCamera) {
     const target = getStepTarget(step)
     cameraGoal.target = target
     cameraGoal.position = target.clone().add(new THREE.Vector3(...step.camera.position))
   }
 
-  if (performance.now() > state.cameraMoveUntil) return
+  if (!dynamicCamera && performance.now() > state.cameraMoveUntil) return
   camera.position.lerp(cameraGoal.position, 0.08)
   controls.target.lerp(cameraGoal.target, 0.08)
 }
