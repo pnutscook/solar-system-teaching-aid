@@ -722,7 +722,7 @@ body.show-values .metric {
   }
 
   .step-list {
-    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    grid-template-columns: repeat(6, minmax(150px, 1fr));
     overflow-x: auto;
     padding-bottom: 4px;
   }

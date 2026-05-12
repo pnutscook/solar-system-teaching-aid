@@ -254,6 +254,21 @@ export const lessonSteps = [
     showPhases: true,
     camera: { position: [0.2, 2.35, 6.2], targetFocus: true, fov: 42 },
   },
+  {
+    id: 'earthAnalysis',
+    title: '地球解析',
+    shortTitle: '地球解析',
+    prompt: '海洋、陆地和自转轴',
+    narration: '把地球单独放大观察。蓝色代表海洋，绿色代表陆地，白色斜线表示地球的自转轴。地球有空气、水和适合生命生存的环境。',
+    facts: [
+      '地球表面大部分被海洋覆盖，陆地分布在不同大陆上。',
+      '地球的自转轴是倾斜的，这个倾角会影响太阳光照和季节变化。',
+      '地球直径约 1.27 万千米。<span class="metric">真实数值：平均直径约 12742 千米。</span>',
+    ],
+    highlights: ['earth'],
+    focusBodies: ['earth'],
+    camera: { position: [0.18, 1.6, 5.0], targetFocus: true, fov: 40 },
+  },
 ]
 
 const state = {
@@ -302,6 +317,14 @@ const focusLayouts = {
     earthOrbit: { radius: 2.22, speed: 0.30, angle: 0.08 },
     moonOrbit: { radius: 1.12, speed: 1.7, angle: 0.6 },
     orbitFocusBody: 'earth',
+  },
+  earthAnalysis: {
+    bodyIds: new Set(['earth']),
+    radii: { earth: 1.16 },
+    positions: {
+      earth: new THREE.Vector3(0, 0, 0),
+    },
+    orbitFocusBody: '',
   },
 }
 const compareSlots = {
@@ -1444,6 +1467,9 @@ function updateBodyLightOverlay({ bodyObject, worldSun, shadeEntry, lightEntry, 
 function shouldShowLabel(body, activeStep) {
   if (state.selectedBodyId === body.id) return true
   if (state.compareMode) return true
+  if (activeStep.id === 'earthAnalysis') return false
+  const focusLayout = getActiveFocusLayout()
+  if (focusLayout) return focusLayout.bodyIds.has(body.id)
   if (activeStep.id === 'order') return body.id !== 'moon'
   if (activeStep.highlights.includes(body.id)) return true
   return ['sun', 'earth'].includes(body.id)

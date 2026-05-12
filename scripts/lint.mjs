@@ -34,7 +34,7 @@ for (const term of removedPrototypeTerms) {
 }
 
 const stepCount = (source.match(/id: '/g) || []).filter(Boolean).length
-if (stepCount < 15) {
+if (stepCount < 16) {
   throw new Error('Expected the source to define lesson steps and solar-system bodies.')
 }
 
@@ -44,10 +44,10 @@ for (const body of ['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'u
   }
 }
 
-for (const step of ['overview', 'order', 'rotation', 'seasons', 'moon']) {
+for (const step of ['overview', 'order', 'rotation', 'seasons', 'moon', 'earthAnalysis']) {
   if (!source.includes(`id: '${step}'`)) {
     throw new Error(`Missing lesson step: ${step}`)
   }
 }
 
-console.log('Lint checks passed: static, offline, five lesson steps, eight planets.')
+console.log('Lint checks passed: static, offline, six lesson steps, eight planets.')
