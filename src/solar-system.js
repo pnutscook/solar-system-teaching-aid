@@ -258,16 +258,16 @@ export const lessonSteps = [
     id: 'earthAnalysis',
     title: '地球解析',
     shortTitle: '地球解析',
-    prompt: '海洋、陆地和自转轴',
-    narration: '把地球单独放大观察。蓝色代表海洋，绿色代表陆地，白色斜线表示地球的自转轴。地球有空气、水和适合生命生存的环境。',
+    prompt: '地心到大气层',
+    narration: '把地球剖开来看，从中心到外面依次有内核、外核、地幔、地壳，最外面包着大气层。地表有海洋和陆地，大气层保护着地球上的生命。',
     facts: [
-      '地球表面大部分被海洋覆盖，陆地分布在不同大陆上。',
-      '地球的自转轴是倾斜的，这个倾角会影响太阳光照和季节变化。',
-      '地球直径约 1.27 万千米。<span class="metric">真实数值：平均直径约 12742 千米。</span>',
+      '地心附近有内核和外核，温度很高，主要由铁和镍等物质组成。',
+      '地幔位于地壳下面，是地球内部最厚的一层。',
+      '地壳很薄，外面还有大气层。<span class="metric">地球平均直径约 12742 千米。</span>',
     ],
     highlights: ['earth'],
     focusBodies: ['earth'],
-    camera: { position: [0.18, 1.6, 5.0], targetFocus: true, fov: 40 },
+    camera: { position: [0.12, 1.55, 6.0], targetFocus: true, fov: 42 },
   },
 ]
 
@@ -320,10 +320,12 @@ const focusLayouts = {
   },
   earthAnalysis: {
     bodyIds: new Set(['earth']),
-    radii: { earth: 1.16 },
+    radii: { earth: 0.82 },
     positions: {
-      earth: new THREE.Vector3(0, 0, 0),
+      earth: new THREE.Vector3(-1.18, 0, 0),
     },
+    guidePosition: new THREE.Vector3(0.68, 0.0, 0),
+    cameraTarget: new THREE.Vector3(0.18, 0, 0),
     orbitFocusBody: '',
   },
 }
@@ -369,6 +371,7 @@ let controls
 let solarSystem
 let orbitGroup
 let labelGroup
+let earthLayerGroup
 let starField
 let sunLight
 let ambientLight
@@ -432,6 +435,8 @@ function initScene() {
 
   createOrbitRings()
   createBodies()
+  earthLayerGroup = createEarthLayerGuide()
+  scene.add(earthLayerGroup)
   window.addEventListener('resize', resizeRenderer)
 }
 
@@ -577,7 +582,7 @@ function getBodyPositionFact(body) {
 }
 
 function getBodyObservationFact(body) {
-  if (body.id === 'earth') return '观察点：蓝色代表海洋，绿色代表陆地，斜线表示地球自转轴。'
+  if (body.id === 'earth') return '观察点：蓝色代表海洋，绿色代表陆地，外圈蓝色辉光表示大气层，斜线表示地球自转轴。'
   if (body.id === 'jupiter') return '观察点：木星有明显条纹，还有一个红色大斑。'
   if (body.id === 'saturn') return '观察点：土星有宽宽的光环，很容易认出来。'
   if (body.id === 'uranus') return '观察点：天王星的环在课堂模型里竖起来，表示它很倾斜。'
@@ -823,6 +828,7 @@ function createBodies() {
     if (body.id === 'earth') {
       group.add(createEarthAxis())
       group.add(createEarthLandMarks())
+      group.add(createEarthAtmosphere())
       const nightShade = createNightShade()
       const daylight = createLightHemisphere('#fff0a8', 0.28, 1.032)
       group.add(nightShade)
@@ -949,24 +955,55 @@ function drawSolarGranules(context, random, width, height) {
 
 function drawEarthTexture(context, random, width, height) {
   const ocean = context.createLinearGradient(0, 0, 0, height)
-  ocean.addColorStop(0, '#2f80c8')
-  ocean.addColorStop(0.5, '#1c6db0')
-  ocean.addColorStop(1, '#123f7f')
+  ocean.addColorStop(0, '#2b8bcf')
+  ocean.addColorStop(0.46, '#0f5f9f')
+  ocean.addColorStop(1, '#0a356c')
   context.fillStyle = ocean
   context.fillRect(0, 0, width, height)
+
+  context.fillStyle = 'rgba(255,255,255,0.08)'
+  for (let index = 0; index < 7; index += 1) {
+    const y = (0.18 + index * 0.105) * height
+    context.fillRect(0, y, width, 1)
+  }
+
   const lands = [
-    [0.20, 0.42, 0.20, 0.16], [0.34, 0.54, 0.15, 0.20], [0.55, 0.38, 0.18, 0.15],
-    [0.68, 0.55, 0.20, 0.17], [0.81, 0.34, 0.12, 0.13], [0.08, 0.58, 0.13, 0.12],
+    [0.18, 0.39, 0.18, 0.16, -0.30, '#5fae63'],
+    [0.30, 0.61, 0.08, 0.22, 0.20, '#4f9d58'],
+    [0.51, 0.54, 0.12, 0.20, -0.12, '#70aa61'],
+    [0.64, 0.39, 0.27, 0.15, 0.10, '#6ab46a'],
+    [0.74, 0.52, 0.11, 0.12, 0.18, '#8fb96b'],
+    [0.82, 0.66, 0.08, 0.055, 0.08, '#77a85d'],
+    [0.35, 0.22, 0.07, 0.035, -0.10, '#9bb88e'],
+    [0.50, 0.94, 0.42, 0.045, 0, '#eef5f8'],
+    [0.04, 0.38, 0.08, 0.13, -0.2, '#5fae63'],
   ]
-  context.fillStyle = '#67b26d'
-  lands.forEach(([x, y, sx, sy]) => drawBlob(context, x * width, y * height, sx * width, sy * height, 9))
-  context.fillStyle = 'rgba(235, 246, 255, 0.70)'
-  for (let index = 0; index < 12; index += 1) {
-    drawOval(context, random() * width, (0.18 + random() * 0.58) * height, 34 + random() * 42, 5 + random() * 9, 'rgba(235, 246, 255, 0.46)', 1)
+  lands.forEach(([x, y, sx, sy, rotation, color]) => {
+    drawContinentBlob(context, x * width, y * height, sx * width, sy * height, rotation, color)
+  })
+
+  for (let index = 0; index < 16; index += 1) {
+    drawOval(context, random() * width, (0.18 + random() * 0.62) * height, 48 + random() * 68, 5 + random() * 10, 'rgba(238, 248, 255, 0.32)', 1)
+  }
+  for (let index = 0; index < 8; index += 1) {
+    drawOval(context, random() * width, (0.22 + random() * 0.54) * height, 110 + random() * 90, 3 + random() * 5, 'rgba(255,255,255,0.18)', 1)
   }
   context.fillStyle = '#f6fbff'
-  context.fillRect(0, 0, width, 12)
-  context.fillRect(0, height - 12, width, 12)
+  context.fillRect(0, 0, width, 14)
+  context.fillRect(0, height - 14, width, 14)
+}
+
+function drawContinentBlob(context, x, y, width, height, rotation, color) {
+  context.save()
+  context.translate(x, y)
+  context.rotate(rotation)
+  context.fillStyle = 'rgba(229, 202, 129, 0.40)'
+  drawBlob(context, 0, 0, width * 1.04, height * 1.06, 12)
+  context.fillStyle = color
+  drawBlob(context, 0, 0, width, height, 12)
+  context.fillStyle = 'rgba(34, 93, 54, 0.28)'
+  drawBlob(context, -width * 0.08, height * 0.02, width * 0.58, height * 0.44, 8)
+  context.restore()
 }
 
 function drawBandedGasGiant(context, random, width, height, palette) {
@@ -1094,7 +1131,7 @@ function createEarthAxis() {
 
 function createEarthLandMarks() {
   const group = new THREE.Group()
-  const material = new THREE.MeshBasicMaterial({ color: '#68c6a8', transparent: true, opacity: 0.78 })
+  const material = new THREE.MeshBasicMaterial({ color: '#6fc69a', transparent: true, opacity: 0.46 })
   const patches = [
     { scale: [0.30, 0.13, 0.035], position: [-0.18, 0.28, 0.98], rotation: 0.4 },
     { scale: [0.18, 0.09, 0.035], position: [0.34, -0.16, 0.96], rotation: -0.5 },
@@ -1108,6 +1145,21 @@ function createEarthLandMarks() {
     group.add(mesh)
   })
   return group
+}
+
+function createEarthAtmosphere() {
+  const geometry = new THREE.SphereGeometry(1.075, 48, 24)
+  const material = new THREE.MeshBasicMaterial({
+    color: '#8bd7ff',
+    transparent: true,
+    opacity: 0.18,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+    depthWrite: false,
+  })
+  const atmosphere = new THREE.Mesh(geometry, material)
+  atmosphere.name = '大气层辉光'
+  return atmosphere
 }
 
 function createNightShade(radius = 1.025, opacity = 0.46) {
@@ -1207,6 +1259,76 @@ function createLabel(text, color) {
   return sprite
 }
 
+function createEarthLayerGuide() {
+  const group = new THREE.Group()
+  group.name = '地球拆解层'
+  group.visible = false
+
+  const layers = [
+    { name: '地心', color: '#ffe66f', radius: 0.18, x: -0.68, labelY: -0.62, opacity: 0.96 },
+    { name: '外核', color: '#f4a43f', radius: 0.28, x: -0.28, labelY: -0.62, opacity: 0.88 },
+    { name: '地幔', color: '#d96845', radius: 0.40, x: 0.24, labelY: -0.62, opacity: 0.78 },
+    { name: '地壳', color: '#8eb96a', radius: 0.50, x: 0.88, labelY: -0.62, opacity: 0.58 },
+    { name: '大气层', color: '#93dfff', radius: 0.62, x: 1.62, labelY: -0.62, opacity: 0.26, wireframe: true },
+  ]
+
+  const axisMaterial = new THREE.LineBasicMaterial({ color: '#d9e8ef', transparent: true, opacity: 0.45 })
+  const axisGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(layers[0].x - 0.25, 0, 0),
+    new THREE.Vector3(layers[layers.length - 1].x + 0.78, 0, 0),
+  ])
+  group.add(new THREE.Line(axisGeometry, axisMaterial))
+
+  layers.forEach((layer) => {
+    const material = new THREE.MeshBasicMaterial({
+      color: layer.color,
+      transparent: true,
+      opacity: layer.opacity,
+      wireframe: Boolean(layer.wireframe),
+      depthWrite: false,
+    })
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(layer.radius, 40, 20), material)
+    sphere.position.set(layer.x, 0, 0)
+    group.add(sphere)
+
+    const label = createLayerLabel(layer.name, layer.color)
+    label.position.set(layer.x, layer.labelY, 0)
+    group.add(label)
+  })
+
+  const title = createLayerLabel('地球拆解', '#f7f5ed', 1.35)
+  title.position.set(0.46, 0.82, 0)
+  group.add(title)
+
+  return group
+}
+
+function createLayerLabel(text, color, scale = 0.88) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 72
+  const context = canvas.getContext('2d')
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = 'rgba(14, 17, 24, 0.76)'
+  roundRect(context, 18, 14, 220, 44, 14)
+  context.fill()
+  context.strokeStyle = color
+  context.lineWidth = 3
+  context.stroke()
+  context.fillStyle = '#f7f5ed'
+  context.font = '600 25px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(text, 128, 37)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(0.78 * scale, 0.22 * scale, 1)
+  return sprite
+}
+
 function roundRect(context, x, y, width, height, radius) {
   context.beginPath()
   context.moveTo(x + radius, y)
@@ -1249,7 +1371,21 @@ function animate() {
   updateHighlights()
   updateCamera()
   controls.update()
+  updateEarthLayerGuide()
   renderer.render(scene, camera)
+}
+
+function updateEarthLayerGuide() {
+  if (!earthLayerGroup) return
+
+  const activeStep = getActiveStep()
+  const focusLayout = getActiveFocusLayout()
+  const visible = activeStep.id === 'earthAnalysis' && Boolean(focusLayout)
+  earthLayerGroup.visible = visible
+  if (!visible) return
+
+  earthLayerGroup.position.lerp(focusLayout.guidePosition || new THREE.Vector3(), 0.2)
+  earthLayerGroup.scale.lerp(new THREE.Vector3(1, 1, 1), 0.16)
 }
 
 function updateBodies() {
@@ -1492,7 +1628,7 @@ function setCameraFromStep(immediate = false) {
   const step = getActiveStep()
   const target = getStepTarget(step)
   const position = usesDynamicCameraTarget(step)
-    ? target.clone().add(new THREE.Vector3(...step.camera.position))
+    ? target.clone().add(getStepCameraOffset(step))
     : new THREE.Vector3(...step.camera.position)
 
   if (state.compareMode) {
@@ -1508,6 +1644,15 @@ function setCameraFromStep(immediate = false) {
     camera.position.copy(position)
     controls.target.copy(target)
   }
+}
+
+function getStepCameraOffset(step) {
+  const offset = new THREE.Vector3(...step.camera.position)
+  if (step.id === 'earthAnalysis' && camera.aspect < 1.1) {
+    offset.y += 0.2
+    offset.z += 2.8
+  }
+  return offset
 }
 
 function usesDynamicCameraTarget(step) {
@@ -1526,6 +1671,8 @@ function getStepTarget(step) {
 
 function getFocusCameraTarget(step) {
   const focusLayout = focusLayouts[step.id]
+  if (focusLayout?.cameraTarget) return focusLayout.cameraTarget.clone()
+
   const bodyIds = focusLayout ? Array.from(focusLayout.bodyIds) : step.focusBodies || []
   const positions = bodyIds
     .map((bodyId) => objectById.get(bodyId)?.group.position)
@@ -1560,7 +1707,7 @@ function updateCamera() {
   if (dynamicCamera) {
     const target = getStepTarget(step)
     cameraGoal.target = target
-    cameraGoal.position = target.clone().add(new THREE.Vector3(...step.camera.position))
+    cameraGoal.position = target.clone().add(getStepCameraOffset(step))
   }
 
   if (!dynamicCamera && performance.now() > state.cameraMoveUntil) return
