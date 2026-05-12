@@ -258,16 +258,16 @@ export const lessonSteps = [
     id: 'earthAnalysis',
     title: '地球解析',
     shortTitle: '地球解析',
-    prompt: '地心到大气层',
-    narration: '把地球剖开来看，从中心到外面依次有内核、外核、地幔、地壳，最外面包着大气层。地表有海洋和陆地，大气层保护着地球上的生命。',
+    prompt: '内部结构与大气层',
+    narration: '把地球做成独立剖面模型来观察。地球内部从外到内有地壳、地幔、外核和内核，外面包着大气层；大气层又可以分为对流层、平流层、中间层、热层和散逸层。',
     facts: [
-      '地心附近有内核和外核，温度很高，主要由铁和镍等物质组成。',
-      '地幔位于地壳下面，是地球内部最厚的一层。',
-      '地壳很薄，外面还有大气层。<span class="metric">地球平均直径约 12742 千米。</span>',
+      '地壳是最外层，平均厚度约 5-70 千米；地幔厚约 2900 千米，是地球内部最厚的一层。',
+      '外核厚约 2260 千米，主要是液态铁镍；内核半径约 1220 千米，温度很高、密度大。',
+      '大气层从近地面向外依次包括对流层、平流层、中间层、热层和散逸层。<span class="metric">地球平均直径约 12742 千米。</span>',
     ],
-    highlights: ['earth'],
+    highlights: [],
     focusBodies: ['earth'],
-    camera: { position: [0.12, 1.55, 6.0], targetFocus: true, fov: 42 },
+    camera: { position: [0.2, 1.45, 8.2], targetFocus: true, fov: 43 },
   },
 ]
 
@@ -319,13 +319,11 @@ const focusLayouts = {
     orbitFocusBody: 'earth',
   },
   earthAnalysis: {
-    bodyIds: new Set(['earth']),
-    radii: { earth: 0.82 },
-    positions: {
-      earth: new THREE.Vector3(-1.18, 0, 0),
-    },
-    guidePosition: new THREE.Vector3(0.68, 0.0, 0),
-    cameraTarget: new THREE.Vector3(0.18, 0, 0),
+    bodyIds: new Set(),
+    radii: {},
+    positions: {},
+    guidePosition: new THREE.Vector3(0, 0.0, 0),
+    cameraTarget: new THREE.Vector3(0.05, 0.05, 0),
     orbitFocusBody: '',
   },
 }
@@ -388,6 +386,7 @@ init()
 function init() {
   renderStepButtons()
   renderTeachingPanel()
+  syncSceneNotes()
   initScene()
   bindEvents()
   syncPanelState()
@@ -442,12 +441,18 @@ function initScene() {
 
 function bindEvents() {
   scaleToggle.addEventListener('click', () => {
+    if (getActiveStep().id === 'earthAnalysis') {
+      state.compareMode = false
+      scaleToggle.setAttribute('aria-pressed', 'false')
+      syncSceneNotes()
+      setCameraFromStep()
+      return
+    }
+
     state.compareMode = !state.compareMode
     clearBodyFocus()
     scaleToggle.setAttribute('aria-pressed', String(state.compareMode))
-    scaleNote.textContent = state.compareMode
-      ? '大小对比：只比较天体大小，不表示真实距离。'
-      : '课堂比例：每颗行星都被放大，方便在投屏上看清。'
+    syncSceneNotes()
     setCameraFromStep()
   })
 
@@ -514,8 +519,11 @@ function renderStepButtons() {
       stopNarration()
       clearBodyFocus()
       state.activeStepId = step.id
+      if (step.id === 'earthAnalysis') state.compareMode = false
+      scaleToggle.setAttribute('aria-pressed', String(state.compareMode))
       renderStepButtons()
       renderTeachingPanel()
+      syncSceneNotes()
       setCameraFromStep()
     })
     stepList.appendChild(button)
@@ -552,6 +560,20 @@ function renderTeachingPanel() {
     chip.textContent = `${body.name} · ${body.type}`
     focusBodies.appendChild(chip)
   })
+}
+
+function syncSceneNotes() {
+  const step = getActiveStep()
+  if (step.id === 'earthAnalysis') {
+    scaleNote.textContent = '独立地球剖面模型：地壳、地幔、外核、内核与大气层分开展示。'
+    sceneCaption.textContent = '拖动模型可以换角度，滚轮可以放大缩小；标签线指向内部结构和大气层。'
+    return
+  }
+
+  scaleNote.textContent = state.compareMode
+    ? '大小对比：只比较天体大小，不表示真实距离。'
+    : '课堂比例：每颗行星都被放大，方便在投屏上看清。'
+  sceneCaption.textContent = '拖动画面可以换角度，滚轮可以放大缩小。'
 }
 
 function getActiveStep() {
@@ -728,6 +750,8 @@ function stripHtml(value) {
 }
 
 function handleSceneClick(event) {
+  if (getActiveStep().id === 'earthAnalysis') return
+
   const picked = pickBodyFromEvent(event)
   if (!picked) return
 
@@ -740,10 +764,16 @@ function handleSceneClick(event) {
 }
 
 function handleScenePointerMove(event) {
+  if (getActiveStep().id === 'earthAnalysis') {
+    renderer.domElement.style.cursor = 'grab'
+    return
+  }
   renderer.domElement.style.cursor = pickBodyFromEvent(event) ? 'pointer' : 'grab'
 }
 
 function pickBodyFromEvent(event) {
+  if (getActiveStep().id === 'earthAnalysis') return null
+
   const rect = renderer.domElement.getBoundingClientRect()
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
@@ -1261,72 +1291,350 @@ function createLabel(text, color) {
 
 function createEarthLayerGuide() {
   const group = new THREE.Group()
-  group.name = '地球拆解层'
+  group.name = '独立地球内部结构与大气层模型'
   group.visible = false
 
-  const layers = [
-    { name: '地心', color: '#ffe66f', radius: 0.18, x: -0.68, labelY: -0.62, opacity: 0.96 },
-    { name: '外核', color: '#f4a43f', radius: 0.28, x: -0.28, labelY: -0.62, opacity: 0.88 },
-    { name: '地幔', color: '#d96845', radius: 0.40, x: 0.24, labelY: -0.62, opacity: 0.78 },
-    { name: '地壳', color: '#8eb96a', radius: 0.50, x: 0.88, labelY: -0.62, opacity: 0.58 },
-    { name: '大气层', color: '#93dfff', radius: 0.62, x: 1.62, labelY: -0.62, opacity: 0.26, wireframe: true },
+  const earth = new THREE.Group()
+  earth.name = '地球半剖面'
+  earth.position.set(-1.05, -0.18, 0)
+  earth.rotation.y = THREE.MathUtils.degToRad(-8)
+  group.add(earth)
+
+  const surface = createEarthStructureSurface(1.55)
+  const atmosphereShell = createTransparentSphere(1.72, '#85d9ff', 0.16)
+  earth.add(surface, atmosphereShell)
+
+  const cutaway = new THREE.Group()
+  cutaway.name = '内部半剖层'
+  cutaway.position.z = 1.62
+  earth.add(cutaway)
+
+  const layerMeshes = [
+    createCutawayLayer({ name: '地幔', innerRadius: 0.72, outerRadius: 1.42, color: '#c53a24', highlight: '#ff7b34', shadow: '#551515', emissive: '#7d1d13' }),
+    createCutawayLayer({ name: '外核', innerRadius: 0.38, outerRadius: 0.74, color: '#f37a16', highlight: '#ffd05c', shadow: '#a5330c', emissive: '#d94f10' }),
+    createCutawayLayer({ name: '内核', innerRadius: 0, outerRadius: 0.40, color: '#ffe15f', highlight: '#fff8af', shadow: '#f08d14', emissive: '#ffbf23' }),
+    createCutawayLayer({ name: '地壳', innerRadius: 1.42, outerRadius: 1.55, color: '#6a5139', highlight: '#d6aa77', shadow: '#241a12', emissive: '#3f2b1a', opacity: 0.98 }),
   ]
-
-  const axisMaterial = new THREE.LineBasicMaterial({ color: '#d9e8ef', transparent: true, opacity: 0.45 })
-  const axisGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(layers[0].x - 0.25, 0, 0),
-    new THREE.Vector3(layers[layers.length - 1].x + 0.78, 0, 0),
-  ])
-  group.add(new THREE.Line(axisGeometry, axisMaterial))
-
-  layers.forEach((layer) => {
-    const material = new THREE.MeshBasicMaterial({
-      color: layer.color,
-      transparent: true,
-      opacity: layer.opacity,
-      wireframe: Boolean(layer.wireframe),
-      depthWrite: false,
-    })
-    const sphere = new THREE.Mesh(new THREE.SphereGeometry(layer.radius, 40, 20), material)
-    sphere.position.set(layer.x, 0, 0)
-    group.add(sphere)
-
-    const label = createLayerLabel(layer.name, layer.color)
-    label.position.set(layer.x, layer.labelY, 0)
-    group.add(label)
+  layerMeshes.forEach((mesh, index) => {
+    mesh.renderOrder = index + 2
+    cutaway.add(mesh)
   })
 
-  const title = createLayerLabel('地球拆解', '#f7f5ed', 1.35)
-  title.position.set(0.46, 0.82, 0)
-  group.add(title)
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(1.56, 0.025, 10, 160),
+    new THREE.MeshBasicMaterial({ color: '#cab28b', transparent: true, opacity: 0.74, depthWrite: false }),
+  )
+  rim.name = '剖面外缘'
+  rim.position.z = 1.625
+  earth.add(rim)
+
+  earth.add(createGuideLine([
+    new THREE.Vector3(0, -1.55, 1.64),
+    new THREE.Vector3(0, 1.55, 1.64),
+  ], '#f7e7c5', 0.62))
+
+  const internalCallouts = [
+    {
+      title: '地壳',
+      detail: '最外层，平均厚度约5-70千米',
+      color: '#d8b17c',
+      labelPosition: new THREE.Vector3(-2.05, 1.35, 1.35),
+      targetPosition: new THREE.Vector3(-0.95, 1.22, 1.66),
+      labelScale: 0.90,
+    },
+    {
+      title: '地幔',
+      detail: '厚度约2900千米，由高温岩石组成',
+      color: '#ff7448',
+      labelPosition: new THREE.Vector3(-2.05, 0.42, 1.35),
+      targetPosition: new THREE.Vector3(-0.24, 0.44, 1.66),
+      labelScale: 0.90,
+    },
+    {
+      title: '外核',
+      detail: '厚度约2260千米，主要为液态铁镍',
+      color: '#ff9c32',
+      labelPosition: new THREE.Vector3(-2.05, -0.45, 1.35),
+      targetPosition: new THREE.Vector3(-0.58, -0.32, 1.66),
+      labelScale: 0.90,
+    },
+    {
+      title: '内核',
+      detail: '半径约1220千米，温度高、密度大',
+      color: '#ffe766',
+      labelPosition: new THREE.Vector3(-2.05, -1.28, 1.35),
+      targetPosition: new THREE.Vector3(-0.98, -0.24, 1.66),
+      labelScale: 0.90,
+    },
+  ]
+  internalCallouts.forEach((callout) => group.add(createStructureCallout(callout)))
+
+  createAtmosphereBands(group)
+  group.add(createSatelliteIcon(new THREE.Vector3(1.38, 1.18, 1.2)))
+  group.add(createMeteorIcon(new THREE.Vector3(1.72, 0.36, 1.2)))
+  group.add(createCloudIcon(new THREE.Vector3(1.58, -1.36, 1.15)))
 
   return group
 }
 
-function createLayerLabel(text, color, scale = 0.88) {
+function createEarthStructureSurface(radius) {
+  const earthBody = bodyById.get('earth')
+  const texture = createPlanetTexture(earthBody)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: 0.76,
+    metalness: 0.02,
+    emissive: '#1d6f9d',
+    emissiveIntensity: 0.10,
+  })
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 48), material)
+  mesh.name = '真实地表'
+  mesh.rotation.y = THREE.MathUtils.degToRad(-32)
+  return mesh
+}
+
+function createTransparentSphere(radius, color, opacity) {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 72, 36),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      depthWrite: false,
+    }),
+  )
+}
+
+function createCutawayLayer({ name, innerRadius, outerRadius, color, highlight, shadow, emissive, opacity = 1 }) {
+  const geometry = innerRadius > 0
+    ? new THREE.RingGeometry(innerRadius, outerRadius, 128, 3, -Math.PI / 2, Math.PI)
+    : new THREE.CircleGeometry(outerRadius, 128, -Math.PI / 2, Math.PI)
+  const material = new THREE.MeshStandardMaterial({
+    map: createLayerTexture(name, color, highlight, shadow),
+    color,
+    emissive,
+    emissiveIntensity: name === '内核' ? 0.62 : 0.36,
+    roughness: 0.54,
+    metalness: 0.02,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  })
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.name = name
+  return mesh
+}
+
+function createLayerTexture(seedText, base, highlight, shadow) {
   const canvas = document.createElement('canvas')
   canvas.width = 256
-  canvas.height = 72
+  canvas.height = 256
+  const context = canvas.getContext('2d')
+  const random = seededRandom(`earth-layer-${seedText}`)
+  const gradient = context.createRadialGradient(128, 128, 8, 128, 128, 150)
+  gradient.addColorStop(0, highlight)
+  gradient.addColorStop(0.48, base)
+  gradient.addColorStop(1, shadow)
+  context.fillStyle = gradient
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  for (let index = 0; index < 88; index += 1) {
+    const x = random() * canvas.width
+    const y = random() * canvas.height
+    const rx = 4 + random() * 22
+    const ry = 3 + random() * 12
+    drawOval(context, x, y, rx, ry, random() > 0.5 ? highlight : shadow, 0.18 + random() * 0.18)
+  }
+
+  context.strokeStyle = 'rgba(255, 238, 174, 0.22)'
+  context.lineWidth = 1.4
+  for (let index = 0; index < 18; index += 1) {
+    context.beginPath()
+    context.moveTo(random() * canvas.width, random() * canvas.height)
+    context.lineTo(random() * canvas.width, random() * canvas.height)
+    context.stroke()
+  }
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+function createAtmosphereBands(group) {
+  const bands = [
+    { title: '散逸层', detail: '约700-10,000千米，与外太空过渡', color: '#a9caff', label: new THREE.Vector3(2.42, 1.58, 1.22), rx: 3.02, ry: 1.68 },
+    { title: '热层', detail: '约80-700千米，极光和卫星轨道', color: '#8ad8ff', label: new THREE.Vector3(2.45, 0.94, 1.22), rx: 2.72, ry: 1.36 },
+    { title: '中间层', detail: '约50-80千米，流星体在此燃烧', color: '#75c4ff', label: new THREE.Vector3(2.46, 0.30, 1.22), rx: 2.42, ry: 1.08 },
+    { title: '平流层', detail: '约12-50千米，含臭氧层', color: '#63b5f4', label: new THREE.Vector3(2.43, -0.35, 1.22), rx: 2.12, ry: 0.82 },
+    { title: '对流层', detail: '约0-12千米，云、雨、风等天气', color: '#9fe7ff', label: new THREE.Vector3(2.42, -1.00, 1.22), rx: 1.84, ry: 0.60 },
+  ]
+
+  bands.forEach((band, index) => {
+    const arc = createAtmosphereArc(-1.05, -0.18, band.rx, band.ry, band.color, 0.72 - index * 0.08)
+    group.add(arc)
+    group.add(createStructureCallout({
+      title: band.title,
+      detail: band.detail,
+      color: band.color,
+      labelPosition: band.label,
+      targetPosition: new THREE.Vector3(0.72 + index * 0.10, -0.18 + band.ry * 0.72, 1.10),
+      labelScale: 0.98,
+      side: 'right',
+    }))
+  })
+
+  const ozone = createInfoLabel('臭氧层', '约15-35千米，吸收紫外线', '#2d8cff', 0.78)
+  ozone.position.set(2.27, -0.68, 1.28)
+  group.add(ozone)
+}
+
+function createAtmosphereArc(centerX, centerY, radiusX, radiusY, color, opacity) {
+  const points = []
+  for (let index = 0; index <= 130; index += 1) {
+    const angle = THREE.MathUtils.degToRad(10 + index * 160 / 130)
+    points.push(new THREE.Vector3(
+      centerX + Math.cos(angle) * radiusX,
+      centerY + Math.sin(angle) * radiusY,
+      0.55,
+    ))
+  }
+  return createGuideLine(points, color, opacity, 2.4)
+}
+
+function createStructureCallout({ title, detail, color, labelPosition, targetPosition, labelScale = 1, side = 'left' }) {
+  const group = new THREE.Group()
+  const label = createInfoLabel(title, detail, color, labelScale)
+  label.position.copy(labelPosition)
+  group.add(label)
+
+  const labelEdge = labelPosition.clone().add(new THREE.Vector3(side === 'left' ? 0.72 * labelScale : -0.72 * labelScale, 0, 0))
+  group.add(createGuideLine([labelEdge, targetPosition], color, 0.82, 2))
+
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.035, 16, 8),
+    new THREE.MeshBasicMaterial({ color, depthTest: false }),
+  )
+  dot.position.copy(targetPosition)
+  group.add(dot)
+  return group
+}
+
+function createInfoLabel(title, detail, color, scale = 1) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 150
   const context = canvas.getContext('2d')
   context.clearRect(0, 0, canvas.width, canvas.height)
-  context.fillStyle = 'rgba(14, 17, 24, 0.76)'
-  roundRect(context, 18, 14, 220, 44, 14)
+  context.fillStyle = 'rgba(9, 19, 35, 0.80)'
+  roundRect(context, 16, 14, 480, 122, 18)
   context.fill()
   context.strokeStyle = color
-  context.lineWidth = 3
+  context.lineWidth = 4
   context.stroke()
-  context.fillStyle = '#f7f5ed'
-  context.font = '600 25px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.fillText(text, 128, 37)
+
+  context.fillStyle = '#f7fbff'
+  context.font = '700 38px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
+  context.textAlign = 'left'
+  context.textBaseline = 'top'
+  context.fillText(title, 42, 26)
+
+  context.fillStyle = '#c9d5df'
+  context.font = '500 25px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
+  wrapCanvasText(context, detail, 42, 76, 420, 31, 2)
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false })
   const sprite = new THREE.Sprite(material)
-  sprite.scale.set(0.78 * scale, 0.22 * scale, 1)
+  sprite.scale.set(1.42 * scale, 0.42 * scale, 1)
   return sprite
+}
+
+function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines) {
+  let line = ''
+  let lineCount = 0
+  Array.from(text).forEach((character) => {
+    const candidate = `${line}${character}`
+    if (context.measureText(candidate).width > maxWidth && line) {
+      context.fillText(line, x, y + lineCount * lineHeight)
+      line = character
+      lineCount += 1
+    } else {
+      line = candidate
+    }
+  })
+  if (line && lineCount < maxLines) context.fillText(line, x, y + lineCount * lineHeight)
+}
+
+function createGuideLine(points, color, opacity = 0.75, lineWidth = 1) {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points)
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    linewidth: lineWidth,
+    depthTest: false,
+    depthWrite: false,
+  })
+  return new THREE.Line(geometry, material)
+}
+
+function createSatelliteIcon(position) {
+  const group = new THREE.Group()
+  group.position.copy(position)
+  group.rotation.z = -0.25
+  const bodyMaterial = new THREE.MeshBasicMaterial({ color: '#f7fbff' })
+  const panelMaterial = new THREE.MeshBasicMaterial({ color: '#2b76d2', transparent: true, opacity: 0.88 })
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.08), bodyMaterial)
+  const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 0.025), panelMaterial)
+  const rightPanel = leftPanel.clone()
+  leftPanel.position.x = -0.26
+  rightPanel.position.x = 0.26
+  group.add(body, leftPanel, rightPanel)
+  return group
+}
+
+function createMeteorIcon(position) {
+  const group = new THREE.Group()
+  group.position.copy(position)
+  const material = new THREE.LineBasicMaterial({ color: '#ff9a3c', transparent: true, opacity: 0.85, depthTest: false })
+  for (let index = 0; index < 3; index += 1) {
+    const y = index * 0.12
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-0.16, y, 0),
+        new THREE.Vector3(0.26, y + 0.24, 0),
+      ]),
+      material,
+    )
+    group.add(line)
+  }
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 6), new THREE.MeshBasicMaterial({ color: '#ffd36e' }))
+  head.position.set(-0.18, -0.02, 0)
+  group.add(head)
+  return group
+}
+
+function createCloudIcon(position) {
+  const group = new THREE.Group()
+  group.position.copy(position)
+  const material = new THREE.MeshBasicMaterial({ color: '#f7fbff', transparent: true, opacity: 0.86, depthWrite: false })
+  const puffs = [
+    [-0.16, 0, 0, 0.12],
+    [0, 0.04, 0, 0.16],
+    [0.18, 0, 0, 0.11],
+    [0.04, -0.04, 0, 0.12],
+  ]
+  puffs.forEach(([x, y, z, radius]) => {
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 8), material)
+    puff.position.set(x, y, z)
+    group.add(puff)
+  })
+  return group
 }
 
 function roundRect(context, x, y, width, height, radius) {
@@ -1379,8 +1687,8 @@ function updateEarthLayerGuide() {
   if (!earthLayerGroup) return
 
   const activeStep = getActiveStep()
-  const focusLayout = getActiveFocusLayout()
-  const visible = activeStep.id === 'earthAnalysis' && Boolean(focusLayout)
+  const focusLayout = focusLayouts.earthAnalysis
+  const visible = activeStep.id === 'earthAnalysis'
   earthLayerGroup.visible = visible
   if (!visible) return
 
@@ -1394,6 +1702,10 @@ function updateBodies() {
   const moonObject = objectById.get('moon')
   const sunObject = objectById.get('sun')
   const focusLayout = getActiveFocusLayout()
+  const earthStructureMode = activeStep.id === 'earthAnalysis'
+
+  solarSystem.visible = !earthStructureMode
+  labelGroup.visible = !earthStructureMode
 
   bodies.forEach((body) => {
     const entry = objectById.get(body.id)
@@ -1522,7 +1834,7 @@ function setMaterialOpacity(materialOrArray, opacityMultiplier) {
 }
 
 function updateOrbitVisibility() {
-  orbitGroup.visible = !state.compareMode
+  orbitGroup.visible = !state.compareMode && getActiveStep().id !== 'earthAnalysis'
   orbitGroup.children.forEach((orbitLine) => {
     const activeStep = getActiveStep()
     const focusLayout = getActiveFocusLayout()
@@ -1616,6 +1928,11 @@ function updateHighlights() {
   bodies.forEach((body) => {
     const entry = objectById.get(body.id)
     if (!entry) return
+
+    if (step.id === 'earthAnalysis') {
+      entry.outline.visible = false
+      return
+    }
 
     const highlighted = step.highlights.includes(body.id)
     entry.outline.visible = highlighted
