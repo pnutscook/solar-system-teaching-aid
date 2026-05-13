@@ -228,11 +228,11 @@ export const lessonSteps = [
     title: '公转、倾角与四季',
     shortTitle: '四季变化',
     prompt: '地球斜着绕太阳走',
-    narration: '地球绕太阳公转时，自转轴一直保持倾斜。阳光照到地面的角度和时间不同，就会形成季节变化。',
+    narration: '地球绕太阳公转时，自转轴一直保持倾斜。太阳直射点会在北回归线和南回归线之间来回移动，直射北半球时北半球更热，直射南半球时北半球更冷。',
     facts: [
       '地球绕太阳公转一圈大约是 1 年。',
-      '四季主要和地球倾角有关，不是因为夏天离太阳最近。',
-      '同一时间，南北半球可能处在不同季节。',
+      '太阳直射点最北到北回归线附近，最南到南回归线附近。',
+      '直射点向北移动时北半球进入春夏，向南移动时北半球进入秋冬。',
     ],
     highlights: ['sun', 'earth'],
     focusBodies: ['sun', 'earth'],
@@ -417,6 +417,7 @@ let solarSystem
 let orbitGroup
 let labelGroup
 let earthLayerGroup
+let seasonSunbeam
 let starField
 let sunLight
 let ambientLight
@@ -486,6 +487,8 @@ function initScene() {
   createBodies()
   earthLayerGroup = createEarthLayerGuide()
   scene.add(earthLayerGroup)
+  seasonSunbeam = createSeasonSunbeam()
+  scene.add(seasonSunbeam)
   window.addEventListener('resize', resizeRenderer)
 }
 
@@ -617,6 +620,12 @@ function syncSceneNotes() {
   if (step.id === 'earthAnalysis') {
     scaleNote.textContent = '独立地球剖面模型：地壳、地幔、外核、内核与大气层分开展示。'
     sceneCaption.textContent = '点击地壳、地幔、外核、内核或大气层标签可播放讲解；拖动后视角会保持不回弹。'
+    return
+  }
+
+  if (step.id === 'seasons') {
+    scaleNote.textContent = '四季示意：黄色光束指向太阳直射点，直射点在南北回归线之间移动。'
+    sceneCaption.textContent = '观察阳光直射点向北或向南移动，北半球会对应进入春夏秋冬。'
     return
   }
 
@@ -974,10 +983,13 @@ function createBodies() {
       group.add(createEarthAxis())
       group.add(createEarthLandMarks())
       group.add(createEarthAtmosphere())
+      const seasonGuide = createSeasonGuide()
+      group.add(seasonGuide)
       const nightShade = createNightShade()
       const daylight = createLightHemisphere('#fff0a8', 0.28, 1.032)
       group.add(nightShade)
       group.add(daylight)
+      objectById.set('earth-season-guide', { group: seasonGuide, body })
       objectById.set('earth-night-shade', { mesh: nightShade, body })
       objectById.set('earth-daylight', { mesh: daylight, body })
     }
@@ -1305,6 +1317,140 @@ function createEarthAtmosphere() {
   const atmosphere = new THREE.Mesh(geometry, material)
   atmosphere.name = '大气层辉光'
   return atmosphere
+}
+
+function createSeasonGuide() {
+  const group = new THREE.Group()
+  group.name = '四季阳光直射示意'
+  group.visible = false
+
+  const rings = [
+    { name: '北回归线', latitude: 23.5, color: '#ffdf6e', opacity: 0.92 },
+    { name: '赤道', latitude: 0, color: '#f7fbff', opacity: 0.72 },
+    { name: '南回归线', latitude: -23.5, color: '#ffdf6e', opacity: 0.92 },
+  ]
+  rings.forEach((ring) => {
+    const line = createLatitudeLine(ring.latitude, 1.045, ring.color, ring.opacity)
+    line.name = ring.name
+    group.add(line)
+
+    const label = createSeasonTextSprite(ring.name, ring.color, 0.72)
+    label.position.set(1.18, Math.sin(THREE.MathUtils.degToRad(ring.latitude)), 0.06)
+    group.add(label)
+  })
+
+  const directBand = createLatitudeLine(0, 1.075, '#ffef85', 1)
+  directBand.name = '阳光直射纬线'
+  directBand.userData.dynamicLatitude = true
+  group.add(directBand)
+
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 24, 12),
+    new THREE.MeshBasicMaterial({
+      color: '#fff6a6',
+      transparent: true,
+      opacity: 0.96,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  )
+  marker.name = '阳光直射点'
+  marker.userData.seasonMarker = true
+  group.add(marker)
+
+  const markerGlow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.115, 24, 12),
+    new THREE.MeshBasicMaterial({
+      color: '#ffd45c',
+      transparent: true,
+      opacity: 0.30,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  )
+  markerGlow.name = '直射点光晕'
+  markerGlow.userData.seasonMarkerGlow = true
+  group.add(markerGlow)
+
+  const markerLabel = createSeasonTextSprite('阳光直射点', '#fff3a0', 0.86)
+  markerLabel.name = '阳光直射点标签'
+  markerLabel.userData.seasonMarkerLabel = true
+  group.add(markerLabel)
+
+  const statusLabel = createSeasonStatusLabel()
+  statusLabel.name = '四季状态标签'
+  statusLabel.position.set(-0.08, 1.58, 0.18)
+  group.add(statusLabel)
+
+  return group
+}
+
+function createSeasonSunbeam() {
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(30), 3))
+  const material = new THREE.LineBasicMaterial({
+    color: '#ffdf6e',
+    transparent: true,
+    opacity: 0.92,
+    blending: THREE.AdditiveBlending,
+    depthTest: false,
+    depthWrite: false,
+  })
+  const rays = new THREE.LineSegments(geometry, material)
+  rays.name = '四季阳光束'
+  rays.visible = false
+  return rays
+}
+
+function createLatitudeLine(latitudeDeg, radius, color, opacity) {
+  const points = []
+  const latitude = THREE.MathUtils.degToRad(latitudeDeg)
+  const y = Math.sin(latitude) * radius
+  const ringRadius = Math.cos(latitude) * radius
+  for (let index = 0; index <= 160; index += 1) {
+    const angle = (index / 160) * Math.PI * 2
+    points.push(new THREE.Vector3(Math.cos(angle) * ringRadius, y, Math.sin(angle) * ringRadius))
+  }
+
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  })
+  return new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), material)
+}
+
+function createSeasonTextSprite(text, color, scale = 1) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 72
+  const context = canvas.getContext('2d')
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = 'rgba(8, 16, 28, 0.78)'
+  roundRect(context, 18, 14, 220, 44, 14)
+  context.fill()
+  context.strokeStyle = color
+  context.lineWidth = 3
+  context.stroke()
+  context.fillStyle = '#f7fbff'
+  context.font = '700 24px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(text, 128, 37)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(0.58 * scale, 0.17 * scale, 1)
+  return sprite
+}
+
+function createSeasonStatusLabel() {
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false }))
+  sprite.scale.set(1.38, 0.40, 1)
+  return sprite
 }
 
 function createNightShade(radius = 1.025, opacity = 0.46) {
@@ -1895,6 +2041,7 @@ function updateBodies() {
   updateOrbitVisibility()
   updateSunLight(sunObject)
   updateLightOverlays(earthObject, moonObject, sunObject)
+  updateSeasonGuide(earthObject, sunObject)
 }
 
 function getFocusLayoutPosition(body, focusLayout) {
@@ -2021,7 +2168,7 @@ function updateLightOverlays(earthObject, moonObject, sunObject) {
     shadeEntry: objectById.get('earth-night-shade'),
     lightEntry: objectById.get('earth-daylight'),
     showShade: ['rotation', 'seasons', 'moon'].includes(step.id),
-    showLight: step.id === 'rotation',
+    showLight: ['rotation', 'seasons'].includes(step.id),
   })
 
   updateBodyLightOverlay({
@@ -2050,6 +2197,143 @@ function updateBodyLightOverlay({ bodyObject, worldSun, shadeEntry, lightEntry, 
     lightEntry.mesh.visible = showLight
     lightEntry.mesh.lookAt(worldBody.clone().add(towardSun))
   }
+}
+
+function updateSeasonGuide(earthObject, sunObject) {
+  const guide = objectById.get('earth-season-guide')?.group
+  if (!guide || !seasonSunbeam) return
+
+  const visible = getActiveStep().id === 'seasons' && !state.compareMode && !state.focusedBodyId && Boolean(earthObject && sunObject)
+  guide.visible = visible
+  seasonSunbeam.visible = visible
+  if (!visible) return
+
+  const worldSun = sunObject.group.position.clone()
+  const worldEarth = earthObject.group.position.clone()
+  const orbitVector = worldEarth.clone().sub(worldSun)
+  const orbitAngle = Math.atan2(orbitVector.z, orbitVector.x)
+  const declinationDeg = Math.sin(orbitAngle) * 23.5
+  const declination = THREE.MathUtils.degToRad(declinationDeg)
+  const sinDeclination = Math.sin(declination)
+  const cosDeclination = Math.cos(declination)
+
+  const directBand = guide.getObjectByName('阳光直射纬线')
+  if (directBand) {
+    directBand.position.y = sinDeclination * 1.075
+    directBand.scale.set(cosDeclination, 1, cosDeclination)
+  }
+
+  const localSun = earthObject.group.worldToLocal(worldSun.clone()).normalize()
+  const horizontalSun = new THREE.Vector3(localSun.x, 0, localSun.z)
+  if (horizontalSun.lengthSq() < 0.0001) horizontalSun.set(1, 0, 0)
+  else horizontalSun.normalize()
+
+  const subsolarLocal = new THREE.Vector3(
+    horizontalSun.x * cosDeclination,
+    sinDeclination,
+    horizontalSun.z * cosDeclination,
+  ).normalize()
+
+  const marker = guide.getObjectByName('阳光直射点')
+  const markerGlow = guide.getObjectByName('直射点光晕')
+  const markerLabel = guide.getObjectByName('阳光直射点标签')
+  const markerPosition = subsolarLocal.clone().multiplyScalar(1.13)
+  if (marker) marker.position.copy(markerPosition)
+  if (markerGlow) markerGlow.position.copy(markerPosition)
+  if (markerLabel) markerLabel.position.copy(markerPosition).add(new THREE.Vector3(0, 0.24, 0))
+
+  const seasonState = getSeasonState(declinationDeg, Math.cos(orbitAngle) > 0)
+  const statusLabel = guide.getObjectByName('四季状态标签')
+  if (statusLabel) updateSeasonStatusLabel(statusLabel, seasonState)
+
+  updateSeasonSunbeam(worldSun, earthObject.group.localToWorld(markerPosition.clone()))
+}
+
+function getSeasonState(declinationDeg, movingNorth) {
+  if (declinationDeg > 18) {
+    return {
+      title: '直射北回归线',
+      detail: '北半球夏季 · 南半球冬季',
+      color: '#ffdc69',
+    }
+  }
+  if (declinationDeg < -18) {
+    return {
+      title: '直射南回归线',
+      detail: '北半球冬季 · 南半球夏季',
+      color: '#8fd7ff',
+    }
+  }
+  if (movingNorth) {
+    return {
+      title: '直射点向北移动',
+      detail: '北半球春季 · 阳光逐渐变强',
+      color: '#91e88e',
+    }
+  }
+  return {
+    title: '直射点向南移动',
+    detail: '北半球秋季 · 阳光逐渐变弱',
+    color: '#ffb36b',
+  }
+}
+
+function updateSeasonStatusLabel(sprite, seasonState) {
+  const key = `${seasonState.title}|${seasonState.detail}`
+  if (sprite.userData.labelKey === key) return
+  sprite.userData.labelKey = key
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 150
+  const context = canvas.getContext('2d')
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = 'rgba(8, 16, 28, 0.82)'
+  roundRect(context, 18, 16, 476, 118, 18)
+  context.fill()
+  context.strokeStyle = seasonState.color
+  context.lineWidth = 4
+  context.stroke()
+  context.fillStyle = '#f8fbff'
+  context.font = '700 36px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(seasonState.title, 256, 52)
+  context.fillStyle = '#d4e1ec'
+  context.font = '600 25px system-ui, PingFang SC, Microsoft YaHei, sans-serif'
+  context.fillText(seasonState.detail, 256, 96)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  sprite.material.map?.dispose()
+  sprite.material.map = texture
+  sprite.material.needsUpdate = true
+}
+
+function updateSeasonSunbeam(worldSun, worldSubsolarPoint) {
+  const positions = seasonSunbeam.geometry.attributes.position.array
+  const beamDirection = worldSubsolarPoint.clone().sub(worldSun).normalize()
+  const startCenter = worldSun.clone().add(beamDirection.clone().multiplyScalar(1.02))
+  const up = new THREE.Vector3(0, 1, 0)
+  const side = beamDirection.clone().cross(up)
+  if (side.lengthSq() < 0.0001) side.set(1, 0, 0)
+  else side.normalize()
+
+  const offsets = [-0.18, -0.09, 0, 0.09, 0.18]
+  offsets.forEach((offset, index) => {
+    const shift = side.clone().multiplyScalar(offset)
+    const start = startCenter.clone().add(shift)
+    const end = worldSubsolarPoint.clone().add(shift.clone().multiplyScalar(0.26))
+    const base = index * 6
+    positions[base] = start.x
+    positions[base + 1] = start.y
+    positions[base + 2] = start.z
+    positions[base + 3] = end.x
+    positions[base + 4] = end.y
+    positions[base + 5] = end.z
+  })
+  seasonSunbeam.geometry.attributes.position.needsUpdate = true
+  seasonSunbeam.geometry.computeBoundingSphere()
 }
 
 function shouldShowLabel(body, activeStep) {
