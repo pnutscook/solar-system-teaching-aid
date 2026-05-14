@@ -358,6 +358,7 @@ let scene
 let camera
 let controls
 let solarSystem
+let earthMotionGroup
 let orbitGroup
 let labelGroup
 let earthLayerGroup
@@ -421,9 +422,10 @@ function initScene() {
   scene.add(sunLight)
 
   solarSystem = new THREE.Group()
+  earthMotionGroup = createEarthMotionGuide()
   orbitGroup = new THREE.Group()
   labelGroup = new THREE.Group()
-  scene.add(solarSystem, orbitGroup, labelGroup)
+  scene.add(solarSystem, earthMotionGroup, orbitGroup, labelGroup)
 
   starField = createStarField()
   scene.add(starField)
@@ -439,7 +441,7 @@ function initScene() {
 
 function bindEvents() {
   scaleToggle.addEventListener('click', () => {
-    if (getActiveStep().id === 'earthAnalysis') {
+    if (['earthAnalysis', 'earthMotion'].includes(getActiveStep().id)) {
       state.compareMode = false
       scaleToggle.setAttribute('aria-pressed', 'false')
       syncSceneNotes()
@@ -517,7 +519,7 @@ function renderStepButtons() {
       stopNarration()
       clearBodyFocus()
       state.activeStepId = step.id
-      if (step.id === 'earthAnalysis') state.compareMode = false
+      if (['earthAnalysis', 'earthMotion'].includes(step.id)) state.compareMode = false
       scaleToggle.setAttribute('aria-pressed', String(state.compareMode))
       renderStepButtons()
       renderTeachingPanel()
@@ -849,7 +851,7 @@ function pickEarthStructureFromEvent(event) {
 }
 
 function pickBodyFromEvent(event) {
-  if (getActiveStep().id === 'earthAnalysis') return null
+  if (['earthAnalysis', 'earthMotion'].includes(getActiveStep().id)) return null
 
   const rect = renderer.domElement.getBoundingClientRect()
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -967,6 +969,95 @@ function createBodies() {
     labelGroup.add(label)
     objectById.set(body.id, { body, group, mesh, outline, label })
   })
+}
+
+function createEarthMotionGuide() {
+  const group = new THREE.Group()
+  group.name = '独立地球运动模型'
+  group.visible = false
+
+  const sunBody = bodyById.get('sun')
+  const earthBody = bodyById.get('earth')
+  const moonBody = bodyById.get('moon')
+
+  const sunGroup = new THREE.Group()
+  sunGroup.name = '地球运动太阳'
+  const sunMesh = createBodyMesh(sunBody)
+  sunGroup.add(sunMesh, createSunGlow())
+  group.add(sunGroup)
+
+  const earthGroup = new THREE.Group()
+  earthGroup.name = '地球运动地球'
+  earthGroup.rotation.z = THREE.MathUtils.degToRad(earthBody.axialTilt)
+  const earthMesh = createBodyMesh(earthBody)
+  const earthShade = createNightShade()
+  const earthDaylight = createLightHemisphere('#fff0a8', 0.30, 1.032)
+  const seasonGuide = createSeasonGuide()
+  earthGroup.add(earthMesh, createEarthAxis(), createEarthLandMarks(), createEarthAtmosphere(), earthShade, earthDaylight, seasonGuide)
+  group.add(earthGroup)
+
+  const moonGroup = new THREE.Group()
+  moonGroup.name = '地球运动月球'
+  const moonMesh = createBodyMesh(moonBody)
+  const moonShade = createNightShade(1.04, 0.34)
+  const moonDaylight = createLightHemisphere('#f7fbff', 0.55, 1.05)
+  moonGroup.add(moonMesh, moonShade, moonDaylight)
+  group.add(moonGroup)
+
+  const earthOrbit = createMotionOrbitLine(2.68, 0.90, '#ffdf6e', 0.46)
+  earthOrbit.name = '地球公转示意轨道'
+  const moonOrbit = createMotionOrbitLine(1.12, 1.12, '#f7fbff', 0.42)
+  moonOrbit.name = '月球绕地轨道'
+  group.add(earthOrbit, moonOrbit)
+
+  const sunLabel = createMotionLabel('太阳', '#f8c663')
+  const earthLabel = createMotionLabel('地球', '#4aa3df')
+  const moonLabel = createMotionLabel('月球', '#d7dce1')
+  group.add(sunLabel, earthLabel, moonLabel)
+
+  group.userData = {
+    sunGroup,
+    earthGroup,
+    moonGroup,
+    sunMesh,
+    earthMesh,
+    moonMesh,
+    earthShade,
+    earthDaylight,
+    moonShade,
+    moonDaylight,
+    seasonGuide,
+    earthOrbit,
+    moonOrbit,
+    sunLabel,
+    earthLabel,
+    moonLabel,
+  }
+
+  return group
+}
+
+function createMotionOrbitLine(radiusX, radiusZ, color, opacity) {
+  const points = []
+  for (let index = 0; index < 192; index += 1) {
+    const angle = (index / 192) * Math.PI * 2
+    points.push(new THREE.Vector3(Math.cos(angle) * radiusX, 0, Math.sin(angle) * radiusZ))
+  }
+  const geometry = new THREE.BufferGeometry().setFromPoints(points)
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  return new THREE.LineLoop(geometry, material)
+}
+
+function createMotionLabel(text, color) {
+  const label = createLabel(text, color)
+  label.scale.set(0.62, 0.21, 1)
+  return label
 }
 
 function createBodyMesh(body) {
@@ -2213,6 +2304,112 @@ function updateEarthStructureSelection() {
   })
 }
 
+function updateEarthMotionGuide() {
+  if (!earthMotionGroup) return
+
+  const active = getActiveStep().id === 'earthMotion' && !state.compareMode && !state.focusedBodyId
+  earthMotionGroup.visible = active
+  if (!active) return
+
+  const data = earthMotionGroup.userData
+  const layout = focusLayouts.earthMotion
+  const orbit = layout.earthOrbit
+  const moonOrbit = layout.moonOrbit
+  const sunPosition = layout.positions.sun.clone()
+  const earthAngle = orbit.angle + state.elapsed * orbit.speed
+  const earthPosition = sunPosition.clone().add(new THREE.Vector3(
+    Math.cos(earthAngle) * orbit.radius,
+    0,
+    Math.sin(earthAngle) * 0.90,
+  ))
+  const moonAngle = moonOrbit.angle + state.elapsed * moonOrbit.speed
+  const moonPosition = earthPosition.clone().add(new THREE.Vector3(
+    Math.cos(moonAngle) * moonOrbit.radius,
+    0.08,
+    Math.sin(moonAngle) * moonOrbit.radius,
+  ))
+
+  data.sunGroup.position.copy(sunPosition)
+  data.sunGroup.scale.setScalar(layout.radii.sun)
+  data.earthGroup.position.copy(earthPosition)
+  data.earthGroup.scale.setScalar(layout.radii.earth)
+  data.moonGroup.position.copy(moonPosition)
+  data.moonGroup.scale.setScalar(layout.radii.moon)
+
+  const spinSpeed = state.motionEnabled ? 1 : 0
+  data.sunMesh.rotation.y += 0.08 * 0.015 * spinSpeed
+  data.earthMesh.rotation.y += 0.92 * 0.015 * spinSpeed
+  data.moonMesh.rotation.y += 0.04 * 0.015 * spinSpeed
+
+  data.earthOrbit.position.copy(sunPosition)
+  data.moonOrbit.position.copy(earthPosition)
+  data.sunLabel.position.copy(sunPosition).add(new THREE.Vector3(0, 0.92, 0))
+  data.earthLabel.position.copy(earthPosition).add(new THREE.Vector3(0, 1.02, 0))
+  data.moonLabel.position.copy(moonPosition).add(new THREE.Vector3(0, 0.46, 0))
+
+  sunLight.position.copy(sunPosition)
+  updateBodyLightOverlay({
+    bodyObject: { group: data.earthGroup },
+    worldSun: sunPosition,
+    shadeEntry: { mesh: data.earthShade },
+    lightEntry: { mesh: data.earthDaylight },
+    showShade: true,
+    showLight: true,
+  })
+  updateBodyLightOverlay({
+    bodyObject: { group: data.moonGroup },
+    worldSun: sunPosition,
+    shadeEntry: { mesh: data.moonShade },
+    lightEntry: { mesh: data.moonDaylight },
+    showShade: true,
+    showLight: true,
+  })
+  updateEarthMotionSeasonGuide(data, sunPosition, earthPosition, earthAngle)
+}
+
+function updateEarthMotionSeasonGuide(data, worldSun, worldEarth, orbitAngle) {
+  const guide = data.seasonGuide
+  if (!guide || !seasonSunbeam) return
+
+  guide.visible = true
+  seasonSunbeam.visible = true
+  const declinationDeg = Math.sin(orbitAngle) * 23.5
+  const declination = THREE.MathUtils.degToRad(declinationDeg)
+  const sinDeclination = Math.sin(declination)
+  const cosDeclination = Math.cos(declination)
+
+  const directBand = guide.getObjectByName('阳光直射纬线')
+  if (directBand) {
+    directBand.position.y = sinDeclination * 1.075
+    directBand.scale.set(cosDeclination, 1, cosDeclination)
+  }
+
+  const localSun = data.earthGroup.worldToLocal(worldSun.clone()).normalize()
+  const horizontalSun = new THREE.Vector3(localSun.x, 0, localSun.z)
+  if (horizontalSun.lengthSq() < 0.0001) horizontalSun.set(1, 0, 0)
+  else horizontalSun.normalize()
+
+  const subsolarLocal = new THREE.Vector3(
+    horizontalSun.x * cosDeclination,
+    sinDeclination,
+    horizontalSun.z * cosDeclination,
+  ).normalize()
+
+  const marker = guide.getObjectByName('阳光直射点')
+  const markerGlow = guide.getObjectByName('直射点光晕')
+  const markerLabel = guide.getObjectByName('阳光直射点标签')
+  const markerPosition = subsolarLocal.clone().multiplyScalar(1.13)
+  if (marker) marker.position.copy(markerPosition)
+  if (markerGlow) markerGlow.position.copy(markerPosition)
+  if (markerLabel) markerLabel.position.copy(markerPosition).add(new THREE.Vector3(0, 0.24, 0))
+
+  const seasonState = getSeasonState(declinationDeg, Math.cos(orbitAngle) > 0)
+  const statusLabel = guide.getObjectByName('四季状态标签')
+  if (statusLabel) updateSeasonStatusLabel(statusLabel, seasonState)
+
+  updateSeasonSunbeam(worldSun, data.earthGroup.localToWorld(markerPosition.clone()))
+}
+
 function updateBodies() {
   const activeStep = getActiveStep()
   const earthObject = objectById.get('earth')
@@ -2220,9 +2417,10 @@ function updateBodies() {
   const sunObject = objectById.get('sun')
   const focusLayout = getActiveFocusLayout()
   const earthStructureMode = activeStep.id === 'earthAnalysis'
+  const earthMotionMode = activeStep.id === 'earthMotion'
 
-  solarSystem.visible = !earthStructureMode
-  labelGroup.visible = !earthStructureMode
+  solarSystem.visible = !earthStructureMode && !earthMotionMode
+  labelGroup.visible = !earthStructureMode && !earthMotionMode
 
   bodies.forEach((body) => {
     const entry = objectById.get(body.id)
@@ -2273,6 +2471,7 @@ function updateBodies() {
   updateSunLight(sunObject)
   updateLightOverlays(earthObject, moonObject, sunObject)
   updateSeasonGuide(earthObject, sunObject)
+  updateEarthMotionGuide()
 }
 
 function getFocusLayoutPosition(body, focusLayout) {
@@ -2357,7 +2556,7 @@ function setMaterialOpacity(materialOrArray, opacityMultiplier) {
 }
 
 function updateOrbitVisibility() {
-  orbitGroup.visible = !state.compareMode && getActiveStep().id !== 'earthAnalysis'
+  orbitGroup.visible = !state.compareMode && !['earthAnalysis', 'earthMotion'].includes(getActiveStep().id)
   orbitGroup.children.forEach((orbitLine) => {
     const activeStep = getActiveStep()
     const focusLayout = getActiveFocusLayout()
