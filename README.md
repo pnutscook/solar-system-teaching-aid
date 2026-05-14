@@ -20,3 +20,7 @@ npm run preview
 - 可切换自动运动和真实数值提示。
 - 可播放当前步骤的中文讲解音频，使用浏览器内置语音合成。
 - 左侧步骤栏、右侧讲解栏和顶部工具栏都可收缩，方便全屏投屏。
+
+## 资产来源
+
+- 地球解析中的真实地表模型/纹理来自 NASA Visualization Technology Applications and Development (VTAD) 发布的 Earth 3D Model。NASA 内容按 NASA Images and Media Usage Guidelines 使用；本项目仅作事实性来源说明，不暗示 NASA 认可或背书。

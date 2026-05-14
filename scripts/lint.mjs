@@ -8,6 +8,10 @@ const requiredFiles = [
   'vendor/three.module.js',
   'vendor/three.core.js',
   'vendor/OrbitControls.js',
+  'vendor/loaders/GLTFLoader.js',
+  'vendor/utils/BufferGeometryUtils.js',
+  'vendor/utils/SkeletonUtils.js',
+  'assets/models/nasa-earth/earth_1_12756.glb',
 ]
 
 for (const file of requiredFiles) {

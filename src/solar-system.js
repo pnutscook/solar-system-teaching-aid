@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from '../vendor/OrbitControls.js'
+import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js'
 
 const teachingConfig = {
   title: '太阳系小学课堂教具',
@@ -7,6 +8,12 @@ const teachingConfig = {
   autoMotionByDefault: true,
   defaultStepId: 'overview',
 }
+
+const nasaEarthModelPath = './assets/models/nasa-earth/earth_1_12756.glb'
+const earthCutawayPhiStart = THREE.MathUtils.degToRad(90)
+const earthCutawayPhiLength = THREE.MathUtils.degToRad(270)
+const earthStructureCenter = new THREE.Vector3(-1.05, -0.18, 0)
+const earthStructureExplodeDirection = new THREE.Vector3(0.42, 0.03, 0.28).normalize()
 
 export const bodies = [
   {
@@ -422,6 +429,7 @@ let starField
 let sunLight
 let ambientLight
 let lastFrameTime = performance.now()
+let narrationRequestId = 0
 const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
 let cameraGoal = {
@@ -722,6 +730,8 @@ function toggleNarration() {
   }
 
   window.speechSynthesis.cancel()
+  const requestId = narrationRequestId + 1
+  narrationRequestId = requestId
   const utterance = new SpeechSynthesisUtterance(getNarrationText())
   utterance.lang = 'zh-CN'
   utterance.rate = 0.88
@@ -730,10 +740,12 @@ function toggleNarration() {
   const voice = getChineseVoice()
   if (voice) utterance.voice = voice
   utterance.onend = () => {
+    if (requestId !== narrationRequestId) return
     state.narrationPlaying = false
     syncNarrationState()
   }
   utterance.onerror = () => {
+    if (requestId !== narrationRequestId) return
     state.narrationPlaying = false
     syncNarrationState()
     sceneCaption.textContent = '讲解音频没有播放成功，请检查浏览器声音设置。'
@@ -746,6 +758,7 @@ function toggleNarration() {
 }
 
 function stopNarration() {
+  narrationRequestId += 1
   if ('speechSynthesis' in window) window.speechSynthesis.cancel()
   state.narrationPlaying = false
   syncNarrationState()
@@ -791,6 +804,8 @@ function playStructureNarration(part) {
   }
 
   window.speechSynthesis.cancel()
+  const requestId = narrationRequestId + 1
+  narrationRequestId = requestId
   const utterance = new SpeechSynthesisUtterance(formatNarrationText([
     `现在讲解${part.title}`,
     part.narration,
@@ -802,10 +817,12 @@ function playStructureNarration(part) {
   const voice = getChineseVoice()
   if (voice) utterance.voice = voice
   utterance.onend = () => {
+    if (requestId !== narrationRequestId) return
     state.narrationPlaying = false
     syncNarrationState()
   }
   utterance.onerror = () => {
+    if (requestId !== narrationRequestId) return
     state.narrationPlaying = false
     syncNarrationState()
     sceneCaption.textContent = `${part.title}的语音讲解没有播放成功，请检查浏览器声音设置。`
@@ -1556,43 +1573,76 @@ function createEarthLayerGuide() {
   group.visible = false
 
   const earth = new THREE.Group()
-  earth.name = '地球半剖面'
-  earth.position.set(-1.05, -0.18, 0)
-  earth.rotation.y = THREE.MathUtils.degToRad(-8)
+  earth.name = '地球3/4剖面球体'
+  earth.position.copy(earthStructureCenter)
+  earth.rotation.y = THREE.MathUtils.degToRad(-12)
   group.add(earth)
 
   const surface = createEarthStructureSurface(1.55)
-  const atmosphereShell = createTransparentSphere(1.72, '#85d9ff', 0.16, 'atmosphere')
-  earth.add(surface, atmosphereShell)
-
-  const cutaway = new THREE.Group()
-  cutaway.name = '内部半剖层'
-  cutaway.position.z = 1.62
-  earth.add(cutaway)
-
   const layerMeshes = [
-    createCutawayLayer({ id: 'mantle', name: '地幔', innerRadius: 0.72, outerRadius: 1.42, color: '#c53a24', highlight: '#ff7b34', shadow: '#551515', emissive: '#7d1d13' }),
-    createCutawayLayer({ id: 'outerCore', name: '外核', innerRadius: 0.38, outerRadius: 0.74, color: '#f37a16', highlight: '#ffd05c', shadow: '#a5330c', emissive: '#d94f10' }),
-    createCutawayLayer({ id: 'innerCore', name: '内核', innerRadius: 0, outerRadius: 0.40, color: '#ffe15f', highlight: '#fff8af', shadow: '#f08d14', emissive: '#ffbf23' }),
-    createCutawayLayer({ id: 'crust', name: '地壳', innerRadius: 1.42, outerRadius: 1.55, color: '#6a5139', highlight: '#d6aa77', shadow: '#241a12', emissive: '#3f2b1a', opacity: 0.98 }),
+    createCutawayLayer({
+      id: 'innerCore',
+      name: '内核',
+      innerRadius: 0,
+      outerRadius: 0.40,
+      color: '#ffe15f',
+      highlight: '#fff8af',
+      shadow: '#f08d14',
+      emissive: '#ffbf23',
+      includeOuter: false,
+      includeInner: false,
+      explodeDistance: 0.24,
+    }),
+    createCutawayLayer({
+      id: 'outerCore',
+      name: '外核',
+      innerRadius: 0.415,
+      outerRadius: 0.74,
+      color: '#f37a16',
+      highlight: '#ffd05c',
+      shadow: '#a5330c',
+      emissive: '#d94f10',
+      includeOuter: false,
+      includeInner: false,
+      explodeDistance: 0.20,
+    }),
+    createCutawayLayer({
+      id: 'mantle',
+      name: '地幔',
+      innerRadius: 0.755,
+      outerRadius: 1.42,
+      color: '#c53a24',
+      highlight: '#ff7b34',
+      shadow: '#551515',
+      emissive: '#7d1d13',
+      includeOuter: false,
+      includeInner: false,
+      explodeDistance: 0.16,
+    }),
+    createCutawayLayer({
+      id: 'crust',
+      name: '地壳',
+      innerRadius: 1.435,
+      outerRadius: 1.55,
+      color: '#6a5139',
+      highlight: '#d6aa77',
+      shadow: '#241a12',
+      emissive: '#3f2b1a',
+      opacity: 0.98,
+      includeOuter: false,
+      includeInner: false,
+      explodeDistance: 0.14,
+    }),
   ]
   layerMeshes.forEach((mesh, index) => {
-    mesh.renderOrder = index + 2
-    cutaway.add(mesh)
+    mesh.renderOrder = index + 3
+    earth.add(mesh)
   })
 
-  const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(1.56, 0.025, 10, 160),
-    new THREE.MeshBasicMaterial({ color: '#cab28b', transparent: true, opacity: 0.74, depthWrite: false }),
-  )
-  rim.name = '剖面外缘'
-  rim.position.z = 1.625
-  earth.add(rim)
-
-  earth.add(createGuideLine([
-    new THREE.Vector3(0, -1.55, 1.64),
-    new THREE.Vector3(0, 1.55, 1.64),
-  ], '#f7e7c5', 0.62))
+  const atmosphereShell = createTransparentSphere(1.72, '#85d9ff', 0.15, 'atmosphere')
+  atmosphereShell.renderOrder = 8
+  earth.add(surface, atmosphereShell)
+  earth.add(createCutawayEdgeLines())
 
   const internalCallouts = [
     {
@@ -1600,8 +1650,8 @@ function createEarthLayerGuide() {
       title: '地壳',
       detail: '最外层，平均厚度约5-70千米',
       color: '#d8b17c',
-      labelPosition: new THREE.Vector3(-2.05, 1.35, 1.35),
-      targetPosition: new THREE.Vector3(-0.95, 1.22, 1.66),
+      labelPosition: new THREE.Vector3(-1.86, 1.35, 1.36),
+      targetPosition: getStructureTarget(-0.18, 1.26, 1.08),
       labelScale: 0.90,
     },
     {
@@ -1609,8 +1659,8 @@ function createEarthLayerGuide() {
       title: '地幔',
       detail: '厚度约2900千米，由高温岩石组成',
       color: '#ff7448',
-      labelPosition: new THREE.Vector3(-2.05, 0.42, 1.35),
-      targetPosition: new THREE.Vector3(-0.24, 0.44, 1.66),
+      labelPosition: new THREE.Vector3(-1.86, 0.42, 1.36),
+      targetPosition: getStructureTarget(-0.04, 0.45, 0.92),
       labelScale: 0.90,
     },
     {
@@ -1618,8 +1668,8 @@ function createEarthLayerGuide() {
       title: '外核',
       detail: '厚度约2260千米，主要为液态铁镍',
       color: '#ff9c32',
-      labelPosition: new THREE.Vector3(-2.05, -0.45, 1.35),
-      targetPosition: new THREE.Vector3(-0.58, -0.32, 1.66),
+      labelPosition: new THREE.Vector3(-1.86, -0.45, 1.36),
+      targetPosition: getStructureTarget(0.02, -0.26, 0.66),
       labelScale: 0.90,
     },
     {
@@ -1627,8 +1677,8 @@ function createEarthLayerGuide() {
       title: '内核',
       detail: '半径约1220千米，温度高、密度大',
       color: '#ffe766',
-      labelPosition: new THREE.Vector3(-2.05, -1.28, 1.35),
-      targetPosition: new THREE.Vector3(-0.98, -0.24, 1.66),
+      labelPosition: new THREE.Vector3(-1.86, -1.28, 1.36),
+      targetPosition: getStructureTarget(0.10, -0.10, 0.36),
       labelScale: 0.90,
     },
   ]
@@ -1640,6 +1690,14 @@ function createEarthLayerGuide() {
   group.add(createCloudIcon(new THREE.Vector3(1.58, -1.36, 1.15)))
 
   return group
+}
+
+function getStructureTarget(localX, localY, z) {
+  return new THREE.Vector3(
+    earthStructureCenter.x + localX,
+    earthStructureCenter.y + localY,
+    z,
+  )
 }
 
 function createEarthStructureSurface(radius) {
@@ -1654,27 +1712,67 @@ function createEarthStructureSurface(radius) {
     emissiveIntensity: 0.10,
     side: THREE.DoubleSide,
   })
-  const mesh = new THREE.Mesh(createThreeQuarterSphereGeometry(radius, 96, 48), material)
-  mesh.name = '真实地表'
-  mesh.rotation.y = THREE.MathUtils.degToRad(-32)
+  const mesh = new THREE.Mesh(createCutawaySurfaceGeometry(radius, 112, 56), material)
+  mesh.name = 'NASA真实地表'
+  mesh.userData.structurePartId = 'crust'
+  registerStructureMesh(mesh, 'crust', 0.14)
+  loadNasaEarthSurfaceTexture(material)
   return mesh
 }
 
-function createThreeQuarterSphereGeometry(radius, widthSegments, heightSegments) {
-  return new THREE.SphereGeometry(
-    radius,
+function loadNasaEarthSurfaceTexture(targetMaterial) {
+  const loader = new GLTFLoader()
+  loader.load(
+    nasaEarthModelPath,
+    (gltf) => {
+      const nasaMaterial = findFirstMappedMaterial(gltf.scene)
+      const nasaMap = nasaMaterial?.map
+      if (!nasaMap) return
+      targetMaterial.map?.dispose()
+      const texture = nasaMap.clone()
+      texture.colorSpace = THREE.SRGBColorSpace
+      texture.needsUpdate = true
+      targetMaterial.map = texture
+      targetMaterial.needsUpdate = true
+    },
+    undefined,
+    () => {
+      targetMaterial.needsUpdate = true
+    },
+  )
+}
+
+function findFirstMappedMaterial(root) {
+  let mappedMaterial = null
+  root.traverse((object) => {
+    if (mappedMaterial || !object.isMesh) return
+    const materials = Array.isArray(object.material) ? object.material : [object.material]
+    mappedMaterial = materials.find((material) => material?.map) || null
+  })
+  return mappedMaterial
+}
+
+function createCutawaySurfaceGeometry(radius, widthSegments, heightSegments) {
+  return createCutawayShellGeometry({
+    innerRadius: 0,
+    outerRadius: radius,
     widthSegments,
     heightSegments,
-    Math.PI * 0.5,
-    Math.PI * 1.5,
-    0.04,
-    Math.PI - 0.08,
-  )
+    includeInner: false,
+    includeCutFaces: false,
+  })
 }
 
 function createTransparentSphere(radius, color, opacity, structurePartId = '') {
   const mesh = new THREE.Mesh(
-    createThreeQuarterSphereGeometry(radius, 72, 36),
+    createCutawayShellGeometry({
+      innerRadius: 0,
+      outerRadius: radius,
+      widthSegments: 96,
+      heightSegments: 48,
+      includeInner: false,
+      includeCutFaces: false,
+    }),
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
@@ -1684,14 +1782,36 @@ function createTransparentSphere(radius, color, opacity, structurePartId = '') {
       depthWrite: false,
     }),
   )
-  if (structurePartId) mesh.userData.structurePartId = structurePartId
+  if (structurePartId) {
+    mesh.userData.structurePartId = structurePartId
+    registerStructureMesh(mesh, structurePartId, 0.18)
+  }
   return mesh
 }
 
-function createCutawayLayer({ id, name, innerRadius, outerRadius, color, highlight, shadow, emissive, opacity = 1 }) {
-  const geometry = innerRadius > 0
-    ? new THREE.RingGeometry(innerRadius, outerRadius, 128, 3, -Math.PI / 2, Math.PI)
-    : new THREE.CircleGeometry(outerRadius, 128, -Math.PI / 2, Math.PI)
+function createCutawayLayer({
+  id,
+  name,
+  innerRadius,
+  outerRadius,
+  color,
+  highlight,
+  shadow,
+  emissive,
+  opacity = 1,
+  includeOuter = true,
+  includeInner = innerRadius > 0,
+  explodeDistance = 0.16,
+}) {
+  const geometry = createCutawayShellGeometry({
+    innerRadius,
+    outerRadius,
+    widthSegments: 104,
+    heightSegments: 52,
+    includeOuter,
+    includeInner,
+    includeCutFaces: true,
+  })
   const material = new THREE.MeshStandardMaterial({
     map: createLayerTexture(name, color, highlight, shadow),
     color,
@@ -1707,7 +1827,153 @@ function createCutawayLayer({ id, name, innerRadius, outerRadius, color, highlig
   const mesh = new THREE.Mesh(geometry, material)
   mesh.name = name
   mesh.userData.structurePartId = id
+  registerStructureMesh(mesh, id, explodeDistance)
   return mesh
+}
+
+function registerStructureMesh(mesh, structurePartId, explodeDistance) {
+  mesh.userData.structurePartId = structurePartId
+  mesh.userData.structureMesh = true
+  mesh.userData.basePosition = mesh.position.clone()
+  mesh.userData.explodeDirection = earthStructureExplodeDirection.clone()
+  mesh.userData.explodeDistance = explodeDistance
+  getObjectMaterials(mesh).forEach((material) => {
+    material.userData.baseEmissiveIntensity = material.emissiveIntensity || 0
+    material.userData.baseOpacity = material.opacity ?? 1
+  })
+}
+
+function createCutawayShellGeometry({
+  innerRadius,
+  outerRadius,
+  widthSegments,
+  heightSegments,
+  includeOuter = true,
+  includeInner = innerRadius > 0,
+  includeCutFaces = true,
+}) {
+  const positions = []
+  const normals = []
+  const uvs = []
+  const indices = []
+  const phiStart = earthCutawayPhiStart
+  const phiLength = earthCutawayPhiLength
+
+  function addVertex(position, normal, uvX, uvY) {
+    positions.push(position.x, position.y, position.z)
+    normals.push(normal.x, normal.y, normal.z)
+    uvs.push(uvX, uvY)
+    return positions.length / 3 - 1
+  }
+
+  function point(radius, phi, theta) {
+    const sinTheta = Math.sin(theta)
+    return new THREE.Vector3(
+      Math.cos(phi) * sinTheta * radius,
+      Math.cos(theta) * radius,
+      Math.sin(phi) * sinTheta * radius,
+    )
+  }
+
+  function surfaceNormal(phi, theta, inward = false) {
+    const normal = point(1, phi, theta).normalize()
+    return inward ? normal.multiplyScalar(-1) : normal
+  }
+
+  function addSphericalSurface(radius, inward) {
+    const grid = []
+    for (let y = 0; y <= heightSegments; y += 1) {
+      const row = []
+      const v = y / heightSegments
+      const theta = v * Math.PI
+      for (let x = 0; x <= widthSegments; x += 1) {
+        const u = x / widthSegments
+        const phi = phiStart + u * phiLength
+        row.push(addVertex(point(radius, phi, theta), surfaceNormal(phi, theta, inward), u, 1 - v))
+      }
+      grid.push(row)
+    }
+
+    for (let y = 0; y < heightSegments; y += 1) {
+      for (let x = 0; x < widthSegments; x += 1) {
+        const a = grid[y][x]
+        const b = grid[y][x + 1]
+        const c = grid[y + 1][x]
+        const d = grid[y + 1][x + 1]
+        if (inward) indices.push(a, b, c, b, d, c)
+        else indices.push(a, c, b, b, c, d)
+      }
+    }
+  }
+
+  function addRadialCutFace(phi, flip) {
+    const grid = []
+    const planeNormal = new THREE.Vector3(-Math.sin(phi), 0, Math.cos(phi)).normalize()
+    if (flip) planeNormal.multiplyScalar(-1)
+    for (let y = 0; y <= heightSegments; y += 1) {
+      const theta = (y / heightSegments) * Math.PI
+      grid.push([
+        addVertex(point(innerRadius, phi, theta), planeNormal, 0, y / heightSegments),
+        addVertex(point(outerRadius, phi, theta), planeNormal, 1, y / heightSegments),
+      ])
+    }
+    for (let y = 0; y < heightSegments; y += 1) {
+      const a = grid[y][0]
+      const b = grid[y][1]
+      const c = grid[y + 1][0]
+      const d = grid[y + 1][1]
+      if (flip) indices.push(a, c, b, b, c, d)
+      else indices.push(a, b, c, b, d, c)
+    }
+  }
+
+  if (includeOuter) addSphericalSurface(outerRadius, false)
+  if (includeInner && innerRadius > 0) addSphericalSurface(innerRadius, true)
+  if (includeCutFaces) {
+    addRadialCutFace(phiStart, false)
+    addRadialCutFace(phiStart + phiLength, true)
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geometry.setIndex(indices)
+  geometry.computeBoundingSphere()
+  return geometry
+}
+
+function createCutawayEdgeLines() {
+  const group = new THREE.Group()
+  group.name = '剖面边界线'
+  const radii = [
+    { radius: 0.40, color: '#fff3a6', opacity: 0.50 },
+    { radius: 0.74, color: '#ffb45a', opacity: 0.45 },
+    { radius: 1.42, color: '#ff7448', opacity: 0.40 },
+    { radius: 1.55, color: '#f3d7aa', opacity: 0.54 },
+    { radius: 1.72, color: '#9fe7ff', opacity: 0.34 },
+  ]
+  const boundaryAngles = [earthCutawayPhiStart, earthCutawayPhiStart + earthCutawayPhiLength]
+  radii.forEach((entry) => {
+    boundaryAngles.forEach((phi) => {
+      group.add(createMeridianLine(entry.radius, phi, entry.color, entry.opacity))
+    })
+  })
+  return group
+}
+
+function createMeridianLine(radius, phi, color, opacity) {
+  const points = []
+  for (let index = 0; index <= 96; index += 1) {
+    const theta = (index / 96) * Math.PI
+    const sinTheta = Math.sin(theta)
+    points.push(new THREE.Vector3(
+      Math.cos(phi) * sinTheta * radius,
+      Math.cos(theta) * radius,
+      Math.sin(phi) * sinTheta * radius,
+    ))
+  }
+  return createGuideLine(points, color, opacity, 1.8)
 }
 
 function createLayerTexture(seedText, base, highlight, shadow) {
@@ -1980,6 +2246,32 @@ function updateEarthLayerGuide() {
 
   earthLayerGroup.position.lerp(focusLayout.guidePosition || new THREE.Vector3(), 0.2)
   earthLayerGroup.scale.lerp(new THREE.Vector3(1, 1, 1), 0.16)
+  updateEarthStructureSelection()
+}
+
+function updateEarthStructureSelection() {
+  const selectedId = state.selectedStructurePartId
+  earthLayerGroup.traverse((object) => {
+    if (!object.userData?.structureMesh) return
+
+    const selected = object.userData.structurePartId === selectedId
+    const basePosition = object.userData.basePosition || new THREE.Vector3()
+    const explodeDirection = object.userData.explodeDirection || earthStructureExplodeDirection
+    const distance = selected ? object.userData.explodeDistance || 0.16 : 0
+    object.position.lerp(basePosition.clone().add(explodeDirection.clone().multiplyScalar(distance)), 0.18)
+
+    getObjectMaterials(object).forEach((material) => {
+      const baseEmissive = material.userData.baseEmissiveIntensity || 0
+      const targetEmissive = selected ? Math.max(baseEmissive * 1.85, 0.42) : baseEmissive
+      if (material.emissiveIntensity !== undefined) {
+        material.emissiveIntensity = THREE.MathUtils.lerp(material.emissiveIntensity, targetEmissive, 0.18)
+      }
+      if (material.opacity !== undefined && material.userData.baseOpacity !== undefined) {
+        const targetOpacity = selected ? Math.min(1, material.userData.baseOpacity + 0.08) : material.userData.baseOpacity
+        material.opacity = THREE.MathUtils.lerp(material.opacity, targetOpacity, 0.16)
+      }
+    })
+  })
 }
 
 function updateBodies() {
@@ -2097,6 +2389,11 @@ function setObjectOpacity(object, opacityMultiplier) {
     if (!child.material) return
     setMaterialOpacity(child.material, opacityMultiplier)
   })
+}
+
+function getObjectMaterials(object) {
+  if (!object.material) return []
+  return Array.isArray(object.material) ? object.material : [object.material]
 }
 
 function setMaterialOpacity(materialOrArray, opacityMultiplier) {
