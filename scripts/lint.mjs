@@ -48,10 +48,10 @@ for (const body of ['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'u
   }
 }
 
-for (const step of ['overview', 'order', 'rotation', 'seasons', 'moon', 'earthAnalysis']) {
+for (const step of ['overview', 'earthMotion', 'earthAnalysis']) {
   if (!source.includes(`id: '${step}'`)) {
     throw new Error(`Missing lesson step: ${step}`)
   }
 }
 
-console.log('Lint checks passed: static, offline, six lesson steps, eight planets.')
+console.log('Lint checks passed: static, offline, three lesson steps, eight planets.')

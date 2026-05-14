@@ -187,79 +187,34 @@ export const bodies = [
 export const lessonSteps = [
   {
     id: 'overview',
-    title: '认识太阳系',
+    title: '认识太阳系与行星顺序',
     shortTitle: '认识太阳系',
-    prompt: '太阳、行星和轨道',
-    narration: '太阳系是以太阳为中心的大家庭。这里有八大行星、许多卫星、小行星、彗星和尘埃。地球是从太阳向外数的第三颗行星，木星最大，海王星离太阳最远。',
+    prompt: '太阳、行星和顺序',
+    narration: '太阳系是以太阳为中心的大家庭。八大行星从离太阳最近到最远依次是水星、金星、地球、火星、木星、土星、天王星、海王星；地球排第三，木星最大，海王星离太阳最远。',
     facts: [
       '太阳占了太阳系绝大部分质量，是光和热的主要来源。',
       '八大行星从近到远是：水星、金星、地球、火星、木星、土星、天王星、海王星。',
-      '火星和木星之间有小行星带；木星、土星、天王星、海王星都是外侧的大行星。',
+      '课堂里可以用“水金地火木土天海”快速记住顺序；火星和木星之间有小行星带。',
     ],
-    highlights: ['sun', 'earth', 'jupiter', 'saturn'],
-    focusBodies: ['sun', 'earth', 'jupiter', 'saturn'],
-    camera: { position: [0, 7.0, 12.5], target: [0, 0, 0], fov: 48 },
-  },
-  {
-    id: 'order',
-    title: '行星顺序',
-    shortTitle: '行星顺序',
-    prompt: '从太阳向外数',
-    narration: '从离太阳最近到最远，八大行星依次是：水星、金星、地球、火星、木星、土星、天王星、海王星。',
-    facts: [
-      '水星最靠近太阳，海王星离太阳最远。',
-      '木星最大，地球排在第三位。',
-      '课堂里可以用“水金地火木土天海”快速记住顺序。',
-    ],
-    highlights: ['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'],
-    focusBodies: ['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'],
+    highlights: ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'],
+    focusBodies: ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'],
     camera: { position: [0, 9.2, 10.8], target: [0, 0, 0], fov: 52 },
   },
   {
-    id: 'rotation',
-    title: '地球自转与昼夜',
-    shortTitle: '地球自转',
-    prompt: '亮的一面是白天',
-    narration: '地球像陀螺一样不停自转。面向太阳的一侧是白天，背向太阳的一侧是夜晚。',
+    id: 'earthMotion',
+    title: '地球运动与月相',
+    shortTitle: '地球运动',
+    prompt: '自转、公转和月相',
+    narration: '地球自转形成昼夜交替，地球斜着绕太阳公转，太阳直射点会在南北回归线之间移动并带来四季变化。月球绕地球运动，太阳照亮月球的一半，我们看到亮面大小变化，就形成月相。',
     facts: [
-      '地球自转一圈大约是 24 小时。<span class="metric">真实数值：约 23 小时 56 分。</span>',
-      '昼夜交替不是太阳绕着地球跑，而是地球自己在转。',
-      '地球上的不同地方，会在不同时间迎来白天和夜晚。',
-    ],
-    highlights: ['sun', 'earth', 'moon'],
-    focusBodies: ['sun', 'earth', 'moon'],
-    camera: { position: [0.2, 2.35, 6.2], targetFocus: true, fov: 42 },
-  },
-  {
-    id: 'seasons',
-    title: '公转、倾角与四季',
-    shortTitle: '四季变化',
-    prompt: '地球斜着绕太阳走',
-    narration: '地球绕太阳公转时，自转轴一直保持倾斜。太阳直射点会在北回归线和南回归线之间来回移动，直射北半球时北半球更热，直射南半球时北半球更冷。',
-    facts: [
-      '地球绕太阳公转一圈大约是 1 年。',
+      '地球自转一圈大约是 24 小时，面向太阳的一侧是白天，背向太阳的一侧是夜晚。<span class="metric">真实数值：约 23 小时 56 分。</span>',
       '太阳直射点最北到北回归线附近，最南到南回归线附近。',
-      '直射点向北移动时北半球进入春夏，向南移动时北半球进入秋冬。',
-    ],
-    highlights: ['sun', 'earth'],
-    focusBodies: ['sun', 'earth'],
-    camera: { position: [0.25, 2.45, 6.4], targetFocus: true, fov: 42 },
-  },
-  {
-    id: 'moon',
-    title: '月球与月相',
-    shortTitle: '月相',
-    prompt: '月亮形状为什么会变',
-    narration: '月球绕地球运动。太阳总是照亮月球的一半，但我们在地球上看到的亮面大小会变化，所以出现不同月相。',
-    facts: [
-      '月球是地球的卫星，会绕地球运动。',
-      '月球自己不会发光，它反射太阳光。',
-      '月相是我们看到的月球亮面发生变化。',
+      '月球自己不会发光，它反射太阳光；月相是我们看到的月球亮面发生变化。',
     ],
     highlights: ['sun', 'earth', 'moon'],
     focusBodies: ['sun', 'earth', 'moon'],
     showPhases: true,
-    camera: { position: [0.2, 2.35, 6.2], targetFocus: true, fov: 42 },
+    camera: { position: [0.25, 2.55, 7.0], targetFocus: true, fov: 44 },
   },
   {
     id: 'earthAnalysis',
@@ -297,33 +252,15 @@ const state = {
 const bodyById = new Map(bodies.map((body) => [body.id, body]))
 const objectById = new Map()
 const focusLayouts = {
-  rotation: {
+  earthMotion: {
     bodyIds: new Set(['sun', 'earth', 'moon']),
-    radii: { sun: 0.98, earth: 0.78, moon: 0.24 },
+    radii: { sun: 0.76, earth: 0.86, moon: 0.30 },
     positions: {
-      sun: new THREE.Vector3(-1.32, 0, -0.08),
+      sun: new THREE.Vector3(-2.10, 0, -0.08),
     },
-    earthOrbit: { radius: 2.22, speed: 0.30, angle: 0.08 },
-    moonOrbit: { radius: 1.08, speed: 1.7, angle: 0.6 },
-    orbitFocusBody: 'earth',
-  },
-  seasons: {
-    bodyIds: new Set(['sun', 'earth']),
-    radii: { sun: 0.98, earth: 0.86 },
-    positions: {
-      sun: new THREE.Vector3(-1.28, 0, -0.08),
-    },
-    earthOrbit: { radius: 2.32, speed: 0.34, angle: 0.38 },
-    orbitFocusBody: 'earth',
-  },
-  moon: {
-    bodyIds: new Set(['sun', 'earth', 'moon']),
-    radii: { sun: 0.98, earth: 0.72, moon: 0.32 },
-    positions: {
-      sun: new THREE.Vector3(-1.32, 0, -0.08),
-    },
-    earthOrbit: { radius: 2.22, speed: 0.30, angle: 0.08 },
+    earthOrbit: { radius: 2.68, speed: 0.08, angle: 0.05 },
     moonOrbit: { radius: 1.12, speed: 1.7, angle: 0.6 },
+    cameraTarget: new THREE.Vector3(0.15, 0.05, 0),
     orbitFocusBody: 'earth',
   },
   earthAnalysis: {
@@ -627,13 +564,13 @@ function syncSceneNotes() {
   const step = getActiveStep()
   if (step.id === 'earthAnalysis') {
     scaleNote.textContent = '独立地球剖面模型：地壳、地幔、外核、内核与大气层分开展示。'
-    sceneCaption.textContent = '点击地壳、地幔、外核、内核或大气层标签可播放讲解；拖动后视角会保持不回弹。'
+    sceneCaption.textContent = '只点击各层讲解框播放讲解；点击地球模型、剖面或轨道线不会触发讲解。'
     return
   }
 
-  if (step.id === 'seasons') {
-    scaleNote.textContent = '四季示意：黄色光束指向太阳直射点，直射点在南北回归线之间移动。'
-    sceneCaption.textContent = '观察阳光直射点向北或向南移动，北半球会对应进入春夏秋冬。'
+  if (step.id === 'earthMotion') {
+    scaleNote.textContent = '地球运动示意：昼夜、四季直射点和月相合并在同一画面。'
+    sceneCaption.textContent = '观察地球亮暗面、太阳直射点移动和月球绕地球形成的月相变化。'
     return
   }
 
@@ -898,12 +835,12 @@ function pickEarthStructureFromEvent(event) {
 
   const pickable = []
   earthLayerGroup.traverse((object) => {
-    if (object.userData?.structurePartId) pickable.push(object)
+    if (object.userData?.structureLabelHitbox) pickable.push(object)
   })
   const hits = raycaster
     .intersectObjects(pickable, true)
-    .filter((item) => item.object.userData.structurePartId)
-  const hit = hits.find((item) => item.object.userData.structurePartId !== 'atmosphere') || hits[0]
+    .filter((item) => item.object.userData.structureLabelHitbox)
+  const hit = hits[0]
   if (!hit) return null
 
   const id = hit.object.userData.structurePartId
@@ -2039,6 +1976,7 @@ function createAtmosphereBands(group) {
   const ozone = createInfoLabel('臭氧层', '约15-35千米，吸收紫外线', '#2d8cff', 0.78)
   ozone.position.set(2.27, -0.68, 1.28)
   ozone.userData.structurePartId = 'ozone'
+  ozone.userData.structureLabelHitbox = true
   group.add(ozone)
 }
 
@@ -2059,6 +1997,7 @@ function createStructureCallout({ id, title, detail, color, labelPosition, targe
   const group = new THREE.Group()
   const label = createInfoLabel(title, detail, color, labelScale)
   label.userData.structurePartId = id
+  label.userData.structureLabelHitbox = true
   label.position.copy(labelPosition)
   group.add(label)
 
@@ -2464,8 +2403,8 @@ function updateLightOverlays(earthObject, moonObject, sunObject) {
     worldSun,
     shadeEntry: objectById.get('earth-night-shade'),
     lightEntry: objectById.get('earth-daylight'),
-    showShade: ['rotation', 'seasons', 'moon'].includes(step.id),
-    showLight: ['rotation', 'seasons'].includes(step.id),
+    showShade: step.id === 'earthMotion',
+    showLight: step.id === 'earthMotion',
   })
 
   updateBodyLightOverlay({
@@ -2473,8 +2412,8 @@ function updateLightOverlays(earthObject, moonObject, sunObject) {
     worldSun,
     shadeEntry: objectById.get('moon-night-shade'),
     lightEntry: objectById.get('moon-daylight'),
-    showShade: step.id === 'moon',
-    showLight: step.id === 'moon',
+    showShade: step.id === 'earthMotion',
+    showLight: step.id === 'earthMotion',
   })
 }
 
@@ -2500,7 +2439,7 @@ function updateSeasonGuide(earthObject, sunObject) {
   const guide = objectById.get('earth-season-guide')?.group
   if (!guide || !seasonSunbeam) return
 
-  const visible = getActiveStep().id === 'seasons' && !state.compareMode && !state.focusedBodyId && Boolean(earthObject && sunObject)
+  const visible = getActiveStep().id === 'earthMotion' && !state.compareMode && !state.focusedBodyId && Boolean(earthObject && sunObject)
   guide.visible = visible
   seasonSunbeam.visible = visible
   if (!visible) return
@@ -2639,7 +2578,6 @@ function shouldShowLabel(body, activeStep) {
   if (activeStep.id === 'earthAnalysis') return false
   const focusLayout = getActiveFocusLayout()
   if (focusLayout) return focusLayout.bodyIds.has(body.id)
-  if (activeStep.id === 'order') return body.id !== 'moon'
   if (activeStep.highlights.includes(body.id)) return true
   return ['sun', 'earth'].includes(body.id)
 }
