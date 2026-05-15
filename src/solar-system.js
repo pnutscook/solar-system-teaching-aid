@@ -14,6 +14,7 @@ const earthCutawayPhiStart = THREE.MathUtils.degToRad(90)
 const earthCutawayPhiLength = THREE.MathUtils.degToRad(270)
 const earthStructureCenter = new THREE.Vector3(-1.05, -0.18, 0)
 const earthStructureExplodeDirection = new THREE.Vector3(0.42, 0.03, 0.28).normalize()
+const focusedBodyCenter = new THREE.Vector3(0, 0, 0)
 
 export const bodies = [
   {
@@ -214,7 +215,7 @@ export const lessonSteps = [
     highlights: ['sun', 'earth', 'moon'],
     focusBodies: ['sun', 'earth', 'moon'],
     showPhases: true,
-    camera: { position: [0.25, 2.55, 7.0], targetFocus: true, fov: 44 },
+    camera: { position: [0, 2.65, 7.5], targetFocus: true, fov: 45 },
   },
   {
     id: 'earthAnalysis',
@@ -254,13 +255,13 @@ const objectById = new Map()
 const focusLayouts = {
   earthMotion: {
     bodyIds: new Set(['sun', 'earth', 'moon']),
-    radii: { sun: 0.76, earth: 0.86, moon: 0.30 },
+    radii: { sun: 0.96, earth: 0.58, moon: 0.18 },
     positions: {
-      sun: new THREE.Vector3(-2.10, 0, -0.08),
+      sun: new THREE.Vector3(0, 0, -0.08),
     },
-    earthOrbit: { radius: 2.68, speed: 0.08, angle: 0.05 },
-    moonOrbit: { radius: 1.12, speed: 1.7, angle: 0.6 },
-    cameraTarget: new THREE.Vector3(0.15, 0.05, 0),
+    earthOrbit: { radius: 2.04, depth: 0.96, speed: 0.08, angle: 0.05 },
+    moonOrbit: { radius: 0.46, speed: 1.7, angle: 0.6 },
+    cameraTarget: new THREE.Vector3(0.48, 0.05, 0),
     orbitFocusBody: 'earth',
   },
   earthAnalysis: {
@@ -362,6 +363,7 @@ let earthMotionGroup
 let orbitGroup
 let labelGroup
 let earthLayerGroup
+let asteroidBeltGroup
 let seasonSunbeam
 let starField
 let sunLight
@@ -432,6 +434,8 @@ function initScene() {
 
   createOrbitRings()
   createBodies()
+  asteroidBeltGroup = createAsteroidBelt()
+  solarSystem.add(asteroidBeltGroup)
   earthLayerGroup = createEarthLayerGuide()
   scene.add(earthLayerGroup)
   seasonSunbeam = createSeasonSunbeam()
@@ -816,7 +820,7 @@ function handleSceneClick(event) {
   stopNarration()
   renderTeachingPanel()
   setCameraForBody(picked.body)
-  sceneCaption.textContent = `已聚焦：${picked.body.name}。星球已放大并居中，方便课堂讲解。`
+  sceneCaption.textContent = `已聚焦：${picked.body.name}。星球已放大、居中并暂停自转，方便课堂讲解。`
 }
 
 function handleScenePointerMove(event) {
@@ -852,6 +856,7 @@ function pickEarthStructureFromEvent(event) {
 
 function pickBodyFromEvent(event) {
   if (['earthAnalysis', 'earthMotion'].includes(getActiveStep().id)) return null
+  if (state.focusedBodyId) return null
 
   const rect = renderer.domElement.getBoundingClientRect()
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -881,7 +886,7 @@ function setCameraForBody(body) {
   const entry = objectById.get(body.id)
   if (!entry) return
 
-  const target = entry.group.position.clone()
+  const target = focusedBodyCenter.clone()
   const radius = getBodyDisplayRadius(body)
   const distance = THREE.MathUtils.clamp(radius * 5.8, 2.4, body.id === 'sun' ? 9.2 : 7.2)
   const height = THREE.MathUtils.clamp(radius * 1.8, 0.8, 3.2)
@@ -918,6 +923,73 @@ function createOrbitRings() {
       line.userData.parentId = body.parent || ''
       orbitGroup.add(line)
     })
+}
+
+function createAsteroidBelt() {
+  const group = new THREE.Group()
+  group.name = '火星和木星之间的小行星带'
+
+  const count = 720
+  const positions = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
+  const random = seededRandom('asteroid-belt')
+  const palettes = ['#d5bd8d', '#a98b68', '#e3d0a8', '#8a7b6a']
+
+  for (let index = 0; index < count; index += 1) {
+    const angle = random() * Math.PI * 2
+    const radius = 5.22 + (random() - 0.5) * 0.72
+    const y = (random() - 0.5) * 0.08
+    const base = index * 3
+    positions[base] = Math.cos(angle) * radius
+    positions[base + 1] = y
+    positions[base + 2] = Math.sin(angle) * radius
+
+    const color = new THREE.Color(palettes[Math.floor(random() * palettes.length)])
+    colors[base] = color.r
+    colors[base + 1] = color.g
+    colors[base + 2] = color.b
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  const material = new THREE.PointsMaterial({
+    size: 0.045,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+  })
+  const points = new THREE.Points(geometry, material)
+  points.name = '小行星颗粒'
+  group.add(points)
+
+  group.add(createAsteroidBeltRing(4.84, 0.26))
+  group.add(createAsteroidBeltRing(5.60, 0.20))
+
+  const label = createLabel('小行星带', '#d5bd8d')
+  label.position.set(0, 0.62, -5.28)
+  label.scale.set(1.06, 0.36, 1)
+  group.add(label)
+
+  return group
+}
+
+function createAsteroidBeltRing(radius, opacity) {
+  const points = []
+  for (let index = 0; index <= 220; index += 1) {
+    const angle = (index / 220) * Math.PI * 2
+    points.push(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius))
+  }
+
+  const material = new THREE.LineBasicMaterial({
+    color: '#d7b985',
+    transparent: true,
+    opacity,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  return new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), material)
 }
 
 function createBodies() {
@@ -975,6 +1047,7 @@ function createEarthMotionGuide() {
   const group = new THREE.Group()
   group.name = '独立地球运动模型'
   group.visible = false
+  const layout = focusLayouts.earthMotion
 
   const sunBody = bodyById.get('sun')
   const earthBody = bodyById.get('earth')
@@ -1004,9 +1077,9 @@ function createEarthMotionGuide() {
   moonGroup.add(moonMesh, moonShade, moonDaylight)
   group.add(moonGroup)
 
-  const earthOrbit = createMotionOrbitLine(2.68, 0.90, '#ffdf6e', 0.46)
+  const earthOrbit = createMotionOrbitLine(layout.earthOrbit.radius, layout.earthOrbit.depth, '#ffdf6e', 0.46)
   earthOrbit.name = '地球公转示意轨道'
-  const moonOrbit = createMotionOrbitLine(1.12, 1.12, '#f7fbff', 0.42)
+  const moonOrbit = createMotionOrbitLine(layout.moonOrbit.radius, layout.moonOrbit.radius, '#f7fbff', 0.42)
   moonOrbit.name = '月球绕地轨道'
   group.add(earthOrbit, moonOrbit)
 
@@ -1619,7 +1692,7 @@ function createEarthLayerGuide() {
       emissive: '#ffbf23',
       includeOuter: false,
       includeInner: false,
-      explodeDistance: 0.24,
+      explodeDistance: 0.36,
     }),
     createCutawayLayer({
       id: 'outerCore',
@@ -1632,7 +1705,7 @@ function createEarthLayerGuide() {
       emissive: '#d94f10',
       includeOuter: false,
       includeInner: false,
-      explodeDistance: 0.20,
+      explodeDistance: 0.34,
     }),
     createCutawayLayer({
       id: 'mantle',
@@ -1645,7 +1718,7 @@ function createEarthLayerGuide() {
       emissive: '#7d1d13',
       includeOuter: false,
       includeInner: false,
-      explodeDistance: 0.16,
+      explodeDistance: 0.30,
     }),
     createCutawayLayer({
       id: 'crust',
@@ -1659,7 +1732,7 @@ function createEarthLayerGuide() {
       opacity: 0.98,
       includeOuter: false,
       includeInner: false,
-      explodeDistance: 0.14,
+      explodeDistance: 0.38,
     }),
   ]
   layerMeshes.forEach((mesh, index) => {
@@ -1812,7 +1885,7 @@ function createTransparentSphere(radius, color, opacity, structurePartId = '') {
   )
   if (structurePartId) {
     mesh.userData.structurePartId = structurePartId
-    registerStructureMesh(mesh, structurePartId, 0.18)
+    registerStructureMesh(mesh, structurePartId, structurePartId === 'atmosphere' ? 0.30 : 0.18)
   }
   return mesh
 }
@@ -1865,7 +1938,25 @@ function registerStructureMesh(mesh, structurePartId, explodeDistance) {
   mesh.userData.basePosition = mesh.position.clone()
   mesh.userData.explodeDirection = earthStructureExplodeDirection.clone()
   mesh.userData.explodeDistance = explodeDistance
-  getObjectMaterials(mesh).forEach((material) => {
+  getSelectionMaterials(mesh).forEach((material) => {
+    material.userData.baseEmissiveIntensity = material.emissiveIntensity || 0
+    material.userData.baseOpacity = material.opacity ?? 1
+  })
+}
+
+function registerStructureEmphasis(object, structurePartId, {
+  explodeDirection = earthStructureExplodeDirection,
+  explodeDistance = 0.14,
+  selectedScale = 1.08,
+} = {}) {
+  object.userData.structurePartId = structurePartId
+  object.userData.structureEmphasis = true
+  object.userData.basePosition = object.position.clone()
+  object.userData.emphasisBaseScale = object.scale.clone()
+  object.userData.explodeDirection = explodeDirection.clone()
+  object.userData.explodeDistance = explodeDistance
+  object.userData.selectedScale = selectedScale
+  getSelectionMaterials(object).forEach((material) => {
     material.userData.baseEmissiveIntensity = material.emissiveIntensity || 0
     material.userData.baseOpacity = material.opacity ?? 1
   })
@@ -2050,7 +2141,11 @@ function createAtmosphereBands(group) {
 
   bands.forEach((band, index) => {
     const arc = createAtmosphereArc(-1.05, -0.18, band.rx, band.ry, band.color, 0.72 - index * 0.08)
-    arc.userData.structurePartId = band.id
+    registerStructureEmphasis(arc, band.id, {
+      explodeDirection: new THREE.Vector3(0.54, 0.10 + index * 0.025, 0.16).normalize(),
+      explodeDistance: 0.28,
+      selectedScale: 1.08,
+    })
     group.add(arc)
     group.add(createStructureCallout({
       id: band.id,
@@ -2068,32 +2163,75 @@ function createAtmosphereBands(group) {
   ozone.position.set(2.27, -0.68, 1.28)
   ozone.userData.structurePartId = 'ozone'
   ozone.userData.structureLabelHitbox = true
+  registerStructureEmphasis(ozone, 'ozone', {
+    explodeDirection: new THREE.Vector3(0.62, -0.08, 0.12).normalize(),
+    explodeDistance: 0.22,
+    selectedScale: 1.16,
+  })
   group.add(ozone)
 }
 
 function createAtmosphereArc(centerX, centerY, radiusX, radiusY, color, opacity) {
+  const group = new THREE.Group()
+  group.position.set(centerX, centerY, 0)
   const points = []
   for (let index = 0; index <= 130; index += 1) {
     const angle = THREE.MathUtils.degToRad(10 + index * 160 / 130)
     points.push(new THREE.Vector3(
-      centerX + Math.cos(angle) * radiusX,
-      centerY + Math.sin(angle) * radiusY,
+      Math.cos(angle) * radiusX,
+      Math.sin(angle) * radiusY,
       0.55,
     ))
   }
-  return createGuideLine(points, color, opacity, 2.4)
+
+  const curve = new THREE.CatmullRomCurve3(points)
+  const ribbon = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 96, 0.012, 8, false),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: Math.min(0.30, opacity * 0.42),
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  )
+  const line = createGuideLine(points, color, opacity, 2.4)
+  group.add(ribbon, line)
+  return group
 }
 
 function createStructureCallout({ id, title, detail, color, labelPosition, targetPosition, labelScale = 1, side = 'left' }) {
   const group = new THREE.Group()
+  const emphasisDirection = labelPosition.clone().sub(targetPosition)
+  if (emphasisDirection.lengthSq() < 0.0001) {
+    emphasisDirection.set(side === 'left' ? -1 : 1, 0, 0.12)
+  }
+  emphasisDirection.normalize()
+  const labelExplodeDistance = side === 'right' ? 0.10 : 0.20
+  const guideExplodeDistance = side === 'right' ? 0.08 : 0.14
+  const dotExplodeDistance = side === 'right' ? 0.08 : 0.12
+  const labelSelectedScale = side === 'right' ? 1.08 : 1.14
+
   const label = createInfoLabel(title, detail, color, labelScale)
   label.userData.structurePartId = id
   label.userData.structureLabelHitbox = true
   label.position.copy(labelPosition)
+  registerStructureEmphasis(label, id, {
+    explodeDirection: emphasisDirection,
+    explodeDistance: labelExplodeDistance,
+    selectedScale: labelSelectedScale,
+  })
   group.add(label)
 
   const labelEdge = labelPosition.clone().add(new THREE.Vector3(side === 'left' ? 0.72 * labelScale : -0.72 * labelScale, 0, 0))
-  group.add(createGuideLine([labelEdge, targetPosition], color, 0.82, 2))
+  const guide = createGuideLine([labelEdge, targetPosition], color, 0.82, 2)
+  registerStructureEmphasis(guide, id, {
+    explodeDirection: emphasisDirection,
+    explodeDistance: guideExplodeDistance,
+    selectedScale: 1,
+  })
+  group.add(guide)
 
   const dot = new THREE.Mesh(
     new THREE.SphereGeometry(0.035, 16, 8),
@@ -2101,6 +2239,11 @@ function createStructureCallout({ id, title, detail, color, labelPosition, targe
   )
   dot.userData.structurePartId = id
   dot.position.copy(targetPosition)
+  registerStructureEmphasis(dot, id, {
+    explodeDirection: emphasisDirection,
+    explodeDistance: dotExplodeDistance,
+    selectedScale: 1.75,
+  })
   group.add(dot)
   return group
 }
@@ -2282,7 +2425,9 @@ function updateEarthLayerGuide() {
 function updateEarthStructureSelection() {
   const selectedId = state.selectedStructurePartId
   earthLayerGroup.traverse((object) => {
-    if (!object.userData?.structureMesh) return
+    const isStructureMesh = object.userData?.structureMesh
+    const isEmphasisObject = object.userData?.structureEmphasis
+    if (!isStructureMesh && !isEmphasisObject) return
 
     const selected = object.userData.structurePartId === selectedId
     const basePosition = object.userData.basePosition || new THREE.Vector3()
@@ -2290,14 +2435,21 @@ function updateEarthStructureSelection() {
     const distance = selected ? object.userData.explodeDistance || 0.16 : 0
     object.position.lerp(basePosition.clone().add(explodeDirection.clone().multiplyScalar(distance)), 0.18)
 
-    getObjectMaterials(object).forEach((material) => {
+    if (isEmphasisObject) {
+      const baseScale = object.userData.emphasisBaseScale || new THREE.Vector3(1, 1, 1)
+      const selectedScale = selected ? object.userData.selectedScale || 1.08 : 1
+      object.scale.lerp(baseScale.clone().multiplyScalar(selectedScale), 0.18)
+    }
+
+    getSelectionMaterials(object).forEach((material) => {
       const baseEmissive = material.userData.baseEmissiveIntensity || 0
-      const targetEmissive = selected ? Math.max(baseEmissive * 1.85, 0.42) : baseEmissive
+      const targetEmissive = selected ? Math.max(baseEmissive * 1.85, isStructureMesh ? 0.42 : 0.18) : baseEmissive
       if (material.emissiveIntensity !== undefined) {
         material.emissiveIntensity = THREE.MathUtils.lerp(material.emissiveIntensity, targetEmissive, 0.18)
       }
       if (material.opacity !== undefined && material.userData.baseOpacity !== undefined) {
-        const targetOpacity = selected ? Math.min(1, material.userData.baseOpacity + 0.08) : material.userData.baseOpacity
+        const opacityLift = isEmphasisObject ? 0.26 : 0.08
+        const targetOpacity = selected ? Math.min(1, material.userData.baseOpacity + opacityLift) : material.userData.baseOpacity
         material.opacity = THREE.MathUtils.lerp(material.opacity, targetOpacity, 0.16)
       }
     })
@@ -2315,12 +2467,13 @@ function updateEarthMotionGuide() {
   const layout = focusLayouts.earthMotion
   const orbit = layout.earthOrbit
   const moonOrbit = layout.moonOrbit
+  const orbitDepth = orbit.depth ?? orbit.radius
   const sunPosition = layout.positions.sun.clone()
   const earthAngle = orbit.angle + state.elapsed * orbit.speed
   const earthPosition = sunPosition.clone().add(new THREE.Vector3(
     Math.cos(earthAngle) * orbit.radius,
     0,
-    Math.sin(earthAngle) * 0.90,
+    Math.sin(earthAngle) * orbitDepth,
   ))
   const moonAngle = moonOrbit.angle + state.elapsed * moonOrbit.speed
   const moonPosition = earthPosition.clone().add(new THREE.Vector3(
@@ -2343,9 +2496,9 @@ function updateEarthMotionGuide() {
 
   data.earthOrbit.position.copy(sunPosition)
   data.moonOrbit.position.copy(earthPosition)
-  data.sunLabel.position.copy(sunPosition).add(new THREE.Vector3(0, 0.92, 0))
-  data.earthLabel.position.copy(earthPosition).add(new THREE.Vector3(0, 1.02, 0))
-  data.moonLabel.position.copy(moonPosition).add(new THREE.Vector3(0, 0.46, 0))
+  data.sunLabel.position.copy(sunPosition).add(new THREE.Vector3(0, layout.radii.sun + 0.34, 0))
+  data.earthLabel.position.copy(earthPosition).add(new THREE.Vector3(0, layout.radii.earth + 0.38, 0))
+  data.moonLabel.position.copy(moonPosition).add(new THREE.Vector3(0, layout.radii.moon + 0.28, 0))
 
   sunLight.position.copy(sunPosition)
   updateBodyLightOverlay({
@@ -2418,6 +2571,7 @@ function updateBodies() {
   const focusLayout = getActiveFocusLayout()
   const earthStructureMode = activeStep.id === 'earthAnalysis'
   const earthMotionMode = activeStep.id === 'earthMotion'
+  const bodyFocusMode = Boolean(state.focusedBodyId) && !earthStructureMode && !earthMotionMode
 
   solarSystem.visible = !earthStructureMode && !earthMotionMode
   labelGroup.visible = !earthStructureMode && !earthMotionMode
@@ -2426,11 +2580,15 @@ function updateBodies() {
     const entry = objectById.get(body.id)
     if (!entry) return
 
+    const isFocusedBody = state.focusedBodyId === body.id
     const targetRadius = getBodyDisplayRadius(body)
     entry.group.scale.lerp(new THREE.Vector3(targetRadius, targetRadius, targetRadius), 0.15)
-    entry.mesh.rotation.y += body.rotationSpeed * 0.015 * (state.motionEnabled ? 1 : 0)
+    entry.mesh.rotation.y += body.rotationSpeed * 0.015 * (state.motionEnabled && !isFocusedBody ? 1 : 0)
 
-    if (focusLayout?.bodyIds.has(body.id)) {
+    if (bodyFocusMode && isFocusedBody) {
+      entry.group.position.lerp(focusedBodyCenter, 0.22)
+      entry.group.rotation.z = body.id === 'earth' ? THREE.MathUtils.degToRad(body.axialTilt || 0) : 0
+    } else if (focusLayout?.bodyIds.has(body.id)) {
       entry.group.position.lerp(getFocusLayoutPosition(body, focusLayout), 0.2)
       entry.group.rotation.z = body.id === 'earth' ? THREE.MathUtils.degToRad(body.axialTilt || 0) : 0
     } else if (state.compareMode) {
@@ -2467,6 +2625,7 @@ function updateBodies() {
     entry.label.scale.lerp(labelTarget, 0.2)
   })
 
+  updateAsteroidBelt()
   updateOrbitVisibility()
   updateSunLight(sunObject)
   updateLightOverlays(earthObject, moonObject, sunObject)
@@ -2483,7 +2642,7 @@ function getFocusLayoutPosition(body, focusLayout) {
     return sunPosition.clone().add(new THREE.Vector3(
       Math.cos(angle) * orbit.radius,
       0,
-      Math.sin(angle) * orbit.radius,
+      Math.sin(angle) * (orbit.depth ?? orbit.radius),
     ))
   }
 
@@ -2518,8 +2677,18 @@ function getActiveFocusLayout() {
 }
 
 function getBodyOpacity(body, focusLayout) {
+  if (state.focusedBodyId) return state.focusedBodyId === body.id ? 1 : 0
   if (!focusLayout) return 1
   return focusLayout.bodyIds.has(body.id) ? 1 : 0.055
+}
+
+function updateAsteroidBelt() {
+  if (!asteroidBeltGroup) return
+
+  asteroidBeltGroup.visible = getActiveStep().id === 'overview' && !state.compareMode && !state.focusedBodyId
+  if (asteroidBeltGroup.visible && state.motionEnabled) {
+    asteroidBeltGroup.rotation.y += 0.0012
+  }
 }
 
 function setObjectOpacity(object, opacityMultiplier) {
@@ -2532,6 +2701,16 @@ function setObjectOpacity(object, opacityMultiplier) {
 function getObjectMaterials(object) {
   if (!object.material) return []
   return Array.isArray(object.material) ? object.material : [object.material]
+}
+
+function getSelectionMaterials(object) {
+  const materials = []
+  object.traverse((child) => {
+    getObjectMaterials(child).forEach((material) => {
+      if (!materials.includes(material)) materials.push(material)
+    })
+  })
+  return materials
 }
 
 function setMaterialOpacity(materialOrArray, opacityMultiplier) {
@@ -2556,7 +2735,7 @@ function setMaterialOpacity(materialOrArray, opacityMultiplier) {
 }
 
 function updateOrbitVisibility() {
-  orbitGroup.visible = !state.compareMode && !['earthAnalysis', 'earthMotion'].includes(getActiveStep().id)
+  orbitGroup.visible = !state.compareMode && !state.focusedBodyId && !['earthAnalysis', 'earthMotion'].includes(getActiveStep().id)
   orbitGroup.children.forEach((orbitLine) => {
     const activeStep = getActiveStep()
     const focusLayout = getActiveFocusLayout()
@@ -2773,6 +2952,7 @@ function updateSeasonSunbeam(worldSun, worldSubsolarPoint) {
 
 function shouldShowLabel(body, activeStep) {
   if (state.selectedBodyId === body.id) return true
+  if (state.focusedBodyId) return false
   if (state.compareMode) return true
   if (activeStep.id === 'earthAnalysis') return false
   const focusLayout = getActiveFocusLayout()
@@ -2792,7 +2972,7 @@ function updateHighlights() {
       return
     }
 
-    const highlighted = step.highlights.includes(body.id)
+    const highlighted = step.highlights.includes(body.id) && (!state.focusedBodyId || state.focusedBodyId === body.id)
     entry.outline.visible = highlighted
     const pulse = 1 + (highlighted ? Math.sin(performance.now() * 0.004) * 0.035 : 0)
     entry.outline.scale.setScalar(pulse)
@@ -2867,7 +3047,7 @@ function updateCamera() {
     const entry = objectById.get(state.focusedBodyId)
     if (body && entry) {
       if (now > state.cameraMoveUntil) return
-      const target = entry.group.position.clone()
+      const target = focusedBodyCenter.clone()
       const radius = getBodyDisplayRadius(body)
       const distance = THREE.MathUtils.clamp(radius * 5.8, 2.4, body.id === 'sun' ? 9.2 : 7.2)
       const height = THREE.MathUtils.clamp(radius * 1.8, 0.8, 3.2)
