@@ -261,7 +261,7 @@ const focusLayouts = {
     },
     earthOrbit: { radius: 2.04, depth: 0.96, speed: 0.08, angle: 0.05 },
     moonOrbit: { radius: 0.46, speed: 1.7, angle: 0.6 },
-    cameraTarget: new THREE.Vector3(0.48, 0.05, 0),
+    cameraTarget: new THREE.Vector3(0, 0.05, 0),
     orbitFocusBody: 'earth',
   },
   earthAnalysis: {
