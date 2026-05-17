@@ -255,12 +255,12 @@ const objectById = new Map()
 const focusLayouts = {
   earthMotion: {
     bodyIds: new Set(['sun', 'earth', 'moon']),
-    radii: { sun: 0.96, earth: 0.58, moon: 0.18 },
+    radii: { sun: 0.88, earth: 0.58, moon: 0.15 },
     positions: {
       sun: new THREE.Vector3(0, 0, -0.08),
     },
     earthOrbit: { radius: 2.04, depth: 0.96, speed: 0.08, angle: 0.05 },
-    moonOrbit: { radius: 0.46, speed: 1.7, angle: 0.6 },
+    moonOrbit: { radius: 0.9, speed: 1.7, angle: 0.6 },
     cameraTarget: new THREE.Vector3(0, 0.05, 0),
     orbitFocusBody: 'earth',
   },
@@ -1023,8 +1023,8 @@ function createBodies() {
     }
 
     if (body.id === 'moon') {
-      const moonLight = createLightHemisphere('#f7fbff', 0.55, 1.05)
-      const moonShade = createNightShade(1.04, 0.34)
+      const moonLight = createLightHemisphere('#f7fbff', 0.36, 1.05)
+      const moonShade = createNightShade(1.04, 0.4)
       group.add(moonLight, moonShade)
       objectById.set('moon-daylight', { mesh: moonLight, body })
       objectById.set('moon-night-shade', { mesh: moonShade, body })
@@ -1072,8 +1072,8 @@ function createEarthMotionGuide() {
   const moonGroup = new THREE.Group()
   moonGroup.name = '地球运动月球'
   const moonMesh = createBodyMesh(moonBody)
-  const moonShade = createNightShade(1.04, 0.34)
-  const moonDaylight = createLightHemisphere('#f7fbff', 0.55, 1.05)
+  const moonShade = createNightShade(1.04, 0.4)
+  const moonDaylight = createLightHemisphere('#f7fbff', 0.36, 1.05)
   moonGroup.add(moonMesh, moonShade, moonDaylight)
   group.add(moonGroup)
 
