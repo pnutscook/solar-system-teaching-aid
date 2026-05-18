@@ -215,7 +215,7 @@ export const lessonSteps = [
     highlights: ['sun', 'earth', 'moon'],
     focusBodies: ['sun', 'earth', 'moon'],
     showPhases: true,
-    camera: { position: [0, 2.65, 7.5], targetFocus: true, fov: 45 },
+    camera: { position: [0, 8.2, 6.8], targetFocus: true, fov: 52 },
   },
   {
     id: 'earthAnalysis',
@@ -255,12 +255,12 @@ const objectById = new Map()
 const focusLayouts = {
   earthMotion: {
     bodyIds: new Set(['sun', 'earth', 'moon']),
-    radii: { sun: 0.88, earth: 0.58, moon: 0.15 },
+    radii: { sun: 0.76, earth: 0.58, moon: 0.15 },
     positions: {
       sun: new THREE.Vector3(0, 0, -0.08),
     },
-    earthOrbit: { radius: 2.04, depth: 0.96, speed: 0.08, angle: 0.05 },
-    moonOrbit: { radius: 0.9, speed: 1.7, angle: 0.6 },
+    earthOrbit: { radius: 3.0, depth: 2.45, speed: 0.08, angle: 0.05 },
+    moonOrbit: { radius: 1.08, speed: 1.7, angle: 0.6 },
     cameraTarget: new THREE.Vector3(0, 0.05, 0),
     orbitFocusBody: 'earth',
   },
