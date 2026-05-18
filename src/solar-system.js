@@ -32,7 +32,7 @@ export const bodies = [
     order: 0,
     realDiameter: '约 139 万千米',
     realOrbit: '太阳系中心',
-    note: '太阳会发光发热，是太阳系里最重要的能量来源。',
+    note: '太阳是太阳系的大暖炉，自己会发光发热。大家绕着它转，白天的光和热，大多都从这里来。',
   },
   {
     id: 'mercury',
@@ -48,7 +48,7 @@ export const bodies = [
     order: 1,
     realDiameter: '约 4880 千米',
     realOrbit: '离太阳最近',
-    note: '水星最靠近太阳，看起来很小，表面温差很大。',
+    note: '水星离太阳最近，是个跑得很快的小个子。白天热得厉害，夜晚又冷得厉害，温差大到像在玩冷热切换。',
   },
   {
     id: 'venus',
@@ -64,7 +64,7 @@ export const bodies = [
     order: 2,
     realDiameter: '约 1.21 万千米',
     realOrbit: '第二颗行星',
-    note: '金星有厚厚的大气，天空中的金星常常非常明亮。',
+    note: '金星裹着厚厚的大气被子，在天空里亮得很显眼。不过它表面特别热，可不是能随便去散步的地方。',
   },
   {
     id: 'earth',
@@ -82,7 +82,7 @@ export const bodies = [
     axialTilt: 23.5,
     realDiameter: '约 1.27 万千米',
     realOrbit: '绕太阳一圈约 1 年',
-    note: '地球有空气、水和生命。白天黑夜来自地球自转。',
+    note: '地球就是我们的家，有空气、有水，还有生命。它一边转圈一边晒太阳，转到太阳这边是白天，背过去就是夜晚。',
   },
   {
     id: 'moon',
@@ -99,7 +99,7 @@ export const bodies = [
     parent: 'earth',
     realDiameter: '约 3474 千米',
     realOrbit: '绕地球运动',
-    note: '月球自己不会发光，我们看到的是它反射的太阳光。',
+    note: '月球自己不会发光，它是把太阳光反射给我们看。它绕着地球转，所以我们看到的亮面一会儿圆，一会儿弯。',
   },
   {
     id: 'mars',
@@ -115,7 +115,7 @@ export const bodies = [
     order: 4,
     realDiameter: '约 6790 千米',
     realOrbit: '第四颗行星',
-    note: '火星表面含有很多铁锈一样的物质，所以常被叫作红色星球。',
+    note: '火星看起来红红的，是因为表面有很多像铁锈一样的物质。它就像给自己撒了一层红色粉末，所以常被叫作红色星球。',
   },
   {
     id: 'jupiter',
@@ -131,7 +131,7 @@ export const bodies = [
     order: 5,
     realDiameter: '约 14.3 万千米',
     realOrbit: '最大的行星',
-    note: '木星是太阳系最大的行星，身上有明显的条纹。',
+    note: '木星是太阳系里的大块头，个子最大。它身上的一条条花纹，其实是快速流动的大气，看起来很有气势。',
   },
   {
     id: 'saturn',
@@ -148,7 +148,7 @@ export const bodies = [
     hasRing: true,
     realDiameter: '约 12.1 万千米',
     realOrbit: '有明显光环',
-    note: '土星最容易认出，因为它有一圈漂亮的光环。',
+    note: '土星最好认，因为它戴着一圈大大的光环。那不是装饰品，而是很多冰块和小石块一起绕着它转。',
   },
   {
     id: 'uranus',
@@ -165,7 +165,7 @@ export const bodies = [
     hasVerticalRing: true,
     realDiameter: '约 5.1 万千米',
     realOrbit: '第七颗行星',
-    note: '天王星颜色偏蓝绿色，自转轴很倾斜，所以课堂模型把它的环竖起来表现。',
+    note: '天王星有点特别，颜色偏蓝绿色，还喜欢歪着身子转。因为它的自转轴很倾斜，所以模型里把它的环竖起来给你看。',
   },
   {
     id: 'neptune',
@@ -181,7 +181,7 @@ export const bodies = [
     order: 8,
     realDiameter: '约 4.95 万千米',
     realOrbit: '第八颗行星',
-    note: '海王星离太阳很远，看起来是深蓝色。',
+    note: '海王星住在很远的外圈，看起来深蓝深蓝的。它绕太阳走一圈要很久，是太阳系里很慢很远的一颗行星。',
   },
 ]
 
